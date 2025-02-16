@@ -2,43 +2,6 @@ import SwiftUI
 import Foundation
 import CoreML
 
-// Add model wrapper types:
-struct PlayerTypeClassifier {
-    let model: MLModel
-    
-    init() throws {
-        guard let modelURL = Bundle.main.url(forResource: "PlayerTypeClassifier", withExtension: "mlmodelc") else {
-            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Model not found"])
-        }
-        self.model = try MLModel(contentsOf: modelURL)
-    }
-    
-    func prediction() throws -> String {
-        // Make prediction using model
-        let input = try MLDictionaryFeatureProvider(dictionary: [:])
-        let output = try model.prediction(from: input)
-        return output.featureValue(for: "label")?.stringValue ?? "Unknown"
-    }
-}
-
-struct PlayerFrustration {
-    let model: MLModel
-    
-    init() throws {
-        guard let modelURL = Bundle.main.url(forResource: "PlayerFrustration", withExtension: "mlmodelc") else {
-            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Model not found"])
-        }
-        self.model = try MLModel(contentsOf: modelURL)
-    }
-    
-    func prediction() throws -> Double {
-        // Make prediction using model
-        let input = try MLDictionaryFeatureProvider(dictionary: [:])
-        let output = try model.prediction(from: input)
-        return output.featureValue(for: "frustrationScore")?.doubleValue ?? 0.0
-    }
-}
-
 struct Level1: View {
     @EnvironmentObject private var levelManager: LevelManager
     @State private var playerState: PlayerState = .idle
@@ -69,7 +32,7 @@ struct Level1: View {
     @State private var hesitationCount: Int = 0
     @State private var gameStartTime: Date = Date()
     @State private var lastMovementTime: Date = Date()
-    private let hesitationThreshold: TimeInterval = 3.0  // Consider hesitation after 3 seconds of no movement
+    private let hesitationThreshold: TimeInterval = 1.0  // Consider hesitation after 3 seconds of no movement
     
     // Add new state variables at the top of Level1 struct:
     @State private var levelStartTime = Date()
@@ -78,6 +41,14 @@ struct Level1: View {
 
     @State private var internalErrors = 0
     @State private var timesFooled = 0
+
+    // NEW: Hesitation zone configuration
+    private let hesitationZones: [CGRect] = [
+        CGRect(x: 260, y: 460, width: 130, height: 120),  // Before coffee3
+        CGRect(x: 890, y: 460, width: 130, height: 120)   // Before coffee7
+    ]
+    @State private var isInHesitationZone = false
+    @State private var hesitationStartTime: Date?
 
     // Physics constants - adjusted for better platform interaction
     private let gravity: CGFloat = 0.8
@@ -168,6 +139,18 @@ struct Level1: View {
                 // Base Background (z-index: 0)
                 Color.white.ignoresSafeArea()
                     .zIndex(0)
+                
+                // NEW: Add visible hesitation zones
+                ForEach(hesitationZones.indices, id: \.self) { index in
+                    Rectangle()
+                        .fill(Color.red)
+                        .opacity(0.7)  // Adjust opacity as needed
+                        .frame(width: hesitationZones[index].width, 
+                               height: hesitationZones[index].height)
+                        .position(x: hesitationZones[index].midX, 
+                                 y: hesitationZones[index].midY)
+                        .zIndex(0.1)  // Between background and game elements
+                }
                 
                 // NEW: Move debug overlay above the background.
                 ScrollView(.vertical) {
@@ -280,7 +263,7 @@ struct Level1: View {
                     
                     // Coffees and other game elements
                     ForEach(0..<7) { index in
-                        if !coffeeStates[index] {
+                        if (!coffeeStates[index]) {
                             Image("coffee")
                                 .resizable()
                                 .frame(width: 22, height: 35)
@@ -410,13 +393,17 @@ struct Level1: View {
                     Color.black.ignoresSafeArea()
                         .zIndex(4)
                         .onAppear {
-                            // Run ML prediction when level is complete.
-                            predictionMessage = getPredictionMessage()
-                            // 3. Example call in your level-complete overlay or relevant spot:
-                            let insights = getPlayerInsights()
-                            let playerType = insights.playerType
-                            let frustrationScore = insights.frustrationScore
-                            // Use playerType & frustrationScore however needed...
+                            predictionMessage = MLInsights.getPredictionMessage(
+                                level: 1,
+                                totalDeaths: deathCount,
+                                levelDeaths: currentLevelDeaths,
+                                hesitationCount: hesitationCount,
+                                timeSpent: totalTimeSpent,
+                                internalErrors: nil,
+                                timesFooled: nil,
+                                playerTypeClassifier: typeClassifier,
+                                frustrationModel: frustrationModel
+                            )
                         }
                     VStack(spacing: 20) {
                         if let msg = predictionMessage {
@@ -589,19 +576,50 @@ struct Level1: View {
 
     
     private func updatePlayerState() {
-        // Don't update state if player is in hey animation or is dead
         if playerState == .hey || isDead {
             hasLoggedUsingPhone = false
             return
         }
         
-        // Update state based on movement and ground contact
+        // Check if player is in any hesitation zone
+        let playerBounds = CGRect(
+            x: playerPosition.x - 25,
+            y: playerPosition.y - 35,
+            width: 50,
+            height: 70
+        )
+        
+        let wasInZone = isInHesitationZone
+        isInHesitationZone = hesitationZones.contains { zone in
+            zone.intersects(playerBounds)
+        }
+        
+        // Start timer when entering zone
+        if !wasInZone && isInHesitationZone {
+            hesitationStartTime = Date()
+        }
+        
+        // Check for hesitation only when in zone and not moving
+        if isInHesitationZone && !isMovingLeft && !isMovingRight && isOnGround {
+            if let startTime = hesitationStartTime {
+                let currentTime = Date()
+                let hesitationDuration = currentTime.timeIntervalSince(startTime)
+                
+                if hesitationDuration >= hesitationThreshold {
+                    hesitationCount += 1
+                    hesitationStartTime = currentTime  // Reset timer after counting hesitation
+                }
+            }
+        } else if !isInHesitationZone {
+            hesitationStartTime = nil  // Reset timer when moving or outside zone
+        }
+        
+        // Update player visual state
         if !isOnGround {
             playerState = .jumping
             hasLoggedUsingPhone = false
         } else if isMovingLeft || isMovingRight {
             playerState = .walking
-            idleStartTime = Date()
             hasLoggedUsingPhone = false
         } else {
             let idleTime = Date().timeIntervalSince(idleStartTime)
@@ -617,18 +635,6 @@ struct Level1: View {
                 playerState = .idle
                 hasLoggedUsingPhone = false
             }
-        }
-        
-        if !isMovingLeft && !isMovingRight && isOnGround {
-            let currentTime = Date()
-            let timeSinceLastMovement = currentTime.timeIntervalSince(lastMovementTime)
-            
-            if timeSinceLastMovement >= hesitationThreshold {
-                hesitationCount += 1
-                lastMovementTime = currentTime  // Reset timer after counting hesitation
-            }
-        } else {
-            lastMovementTime = Date()  // Update last movement time
         }
     }
 
@@ -706,131 +712,6 @@ struct Level1: View {
         resetMetrics()
     }
 
-    // NEW: Updated getPredictionMessage() to fix compilation errors.
-    private func getPredictionMessage() -> String {
-        // Use the pre-instantiated classifier.
-        let playerType: String = {
-            if let tc = typeClassifier, let prediction = try? tc.prediction() {
-                return prediction
-            }
-            return "Unknown"
-        }()
-        
-        // Just use the raw player type directly
-        let mappedPlayerType: String = {
-            switch playerType {
-            case "Speedrunner":
-            return "Speedrunner"
-            case "Explorer": 
-            return "Explorer"
-            case "Hesitant":
-            return "Hesitant"
-            case "Risk-Taker":
-            return "Risk-Taker" 
-            case "Strategist":
-            return "Strategist"
-            default:
-            return "Speedrunner"
-            }
-        }()
-        
-        let frustrationScore: Double = {
-            let baseScore = min(deathCount * 10, 100)
-            return Double(baseScore)
-        }()
-        
-        let frustrationMessage: String = {
-            switch Int(frustrationScore) {
-            case 0...20:
-                let messages = [
-                    "Smooth sailing! You breezed through this level with minimal frustration.",
-                    "Zen mode activated: nothing rattled you this time."
-                ]
-                return messages.randomElement()!
-            case 31...50:
-                let messages = [
-                    "You’re starting to feel the heat—try a more deliberate approach next time.",
-                    "A little tension in your gameplay; a calm, measured move might work wonders."
-                ]
-                return messages.randomElement()!
-            case 51...70:
-                let messages = [
-                    "Things are getting intense—perhaps take a brief pause to regroup.",
-                    "Your frustration is showing; consider slowing down and rethinking your strategy."
-                ]
-                return messages.randomElement()!
-            case 71...100:
-                let messages = [
-                    "Complete meltdown! It might be time for a break before you try again.",
-                    "Critical stress detected! Step back, relax, and come back refreshed."
-                ]
-                return messages.randomElement()!
-            default:
-                return "Keep playing and improve your game!"
-            }
-        }()
-        
-        let insights = getPlayerInsights()
-        let formattedTime = String(format: "%.1f", totalTimeSpent)
-        
-        return """
-        ML Insights:
-        - Player Type: \(mappedPlayerType)
-        - Frustration: \(String(format: "%.2f", insights.frustrationScore))/100
-        
-        Stats:
-        - Total Deaths: \(deathCount)
-        - Level Deaths: \(currentLevelDeaths)
-        - Hesitations: \(hesitationCount)
-        - Time: \(formattedTime)s
-
-        \(frustrationMessage)
-        """
-    }
-
-    // 2. Add a helper to predict player type & frustration:
-    private func getPlayerInsights() -> (playerType: String, frustrationScore: Double) {
-        var predictedType = "Unknown"
-        var frustrationScore = 0.0
-        
-        // Example usage:
-        if let tc = typeClassifier,
-           let tResult = try? tc.prediction() { // Replace with real input(s) as needed
-            predictedType = tResult
-        }
-        
-        // Calculate frustration components
-        let timeSpent = Date().timeIntervalSince(gameStartTime)
-        
-        // Weights for the formula
-        let w1: Double = 0.35
-        let w2: Double = 0.20
-        let w3: Double = 0.15
-        let w4: Double = 0.20
-        let w5: Double = 0.10
-
-        // Maximum values for normalization
-        let maxDeaths: Double = 50
-        let maxHesitation: Double = 10
-        let maxTime: Double = 30
-        let maxErrors: Double = 8
-        let maxFooled: Double = 7
-
-        // Calculate normalized frustration score
-        frustrationScore = (
-            (w1 * Double(deathCount) / maxDeaths) +
-            (w2 * Double(hesitationCount) / maxHesitation) +
-            (w3 * timeSpent / maxTime) +
-            (w4 * Double(internalErrors) / maxErrors) +
-            (w5 * Double(timesFooled) / maxFooled)
-        ) * 100.0
-        
-        // Clamp the score between 0 and 100
-        frustrationScore = max(0, min(frustrationScore, 100))
-        
-        return (predictedType, frustrationScore)
-    }
-    
     // Update resetMetrics to only reset game-specific metrics:
     private func resetMetrics() {
         hesitationCount = 0
@@ -838,28 +719,6 @@ struct Level1: View {
         lastMovementTime = Date()
         // Don't reset currentLevelDeaths here, as we want to track all deaths in current attempt
         levelStartTime = Date() // Reset level timer
-    }
-
-    // Add new helper function to classify player type:
-    private func classifyPlayerType(
-        deaths: Int,
-        hesitation: Int,
-        timeSpent: TimeInterval,
-        internalErrors: Int,
-        timesFooled: Int
-    ) -> String {
-        let timeInMinutes = timeSpent / 60.0
-        if deaths <= 15 && hesitation <= 2 && timeInMinutes <= 10 && internalErrors <= 3 && timesFooled <= 2 {
-            return "Speedrunner"
-        } else if deaths <= 10 && hesitation >= 3 && timeInMinutes >= 15 && internalErrors >= 1 && timesFooled >= 1 {
-            return "Explorer"
-        } else if deaths >= 5 && hesitation >= 5 && timeInMinutes >= 20 && internalErrors >= 2 && timesFooled >= 2 {
-            return "Hesitant"
-        } else if deaths >= 20 && hesitation <= 3 && timeInMinutes <= 15 && internalErrors >= 3 && timesFooled <= 4 {
-            return "Risk-Taker"
-        } else {
-            return "Strategist"
-        }
     }
 }
 
@@ -870,5 +729,3 @@ struct Level1: View {
             .preferredColorScheme(.light)
     }
 }
-
-
