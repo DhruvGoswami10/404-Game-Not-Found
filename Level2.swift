@@ -6,7 +6,7 @@ struct Level2: View {
     @State private var playerFacingRight = true
     
     // Player state
-    @State private var playerPosition = CGPoint(x: 130, y: 510) // Adjusted for platform2
+    @State private var playerPosition = CGPoint(x: 110, y: 590) // Adjusted for platform2
     @State private var playerVelocity = CGPoint.zero
     @State private var isOnGround = true
     @State private var isMovingLeft = false
@@ -32,7 +32,7 @@ struct Level2: View {
     )
     
     // Home position
-    private let homePosition = CGPoint(x: 1250, y: 585) // Adjusted for platform2
+    private let homePosition = CGPoint(x: 1110, y: 585) // Adjusted for platform2
     
     // Animation states
     @State private var walkFrame = 1
@@ -58,27 +58,27 @@ struct Level2: View {
     // NEW: Adjustable configuration for platform2
     private let platform2Config = (
         size: CGSize(width: 200, height: 50),   // Adjust size as needed
-        position: CGPoint(x: 110, y: 650)        // Adjust position as needed
+        position: CGPoint(x: 50, y: 650)        // Adjust position as needed
     )
     
     // NEW: Adjustable configuration for extra platform2.
     private let platform2Extra = (
         size: CGSize(width: 200, height: 50),   // Adjust size as needed
-        position: CGPoint(x: 1200, y: 650)        // Adjust position as needed
+        position: CGPoint(x: 1120, y: 650)        // Adjust position as needed
     )
     
     // NEW: Configurable platforms for additional assets - remove delete and shift, keep return
-    private let returnPlatform = (position: CGPoint(x: 655, y: 650), size: CGSize(width: 100, height: 50))
+    private let returnPlatform = (position: CGPoint(x: 590, y: 650), size: CGSize(width: 100, height: 50))
     
     // Update roof configurations - remove roofConfig3
     private let roofConfig = (
-        size: CGSize(width: 500, height: 50),
-        position: CGPoint(x: 450, y: 150)
+        size: CGSize(width: 300, height: 50),
+        position: CGPoint(x: 380, y: 150)
     )
     
     private let roofConfig2 = (
-        size: CGSize(width: 400, height: 50),
-        position: CGPoint(x: 950, y: 150)
+        size: CGSize(width: 300, height: 50),
+        position: CGPoint(x: 830, y: 150)
     )
     
     // Fix the roof boundary configuration - remove tuple syntax
@@ -132,12 +132,20 @@ struct Level2: View {
     @State private var hesitationStartTime: Date?
     private let hesitationThreshold: TimeInterval = 1.0
     
-    // Add hesitation zones
-    private let hesitationZones: [CGRect] = [
-        CGRect(x: 400, y: 105, width: 130, height: 120),  // Before first roof jump
-        CGRect(x: 850, y: 105, width: 130, height: 120)   // Before second roof jump
+    // Update hesitation zones with new zone and make them configurable
+    private let hesitationZones: [HesitationZone] = [
+        HesitationZone(bounds: CGRect(x: 400, y: 105, width: 130, height: 120)),  // Before first roof jump
+        HesitationZone(bounds: CGRect(x: 850, y: 105, width: 130, height: 120)),  // Before second roof jump
+        HesitationZone(bounds: CGRect(x: 515, y: 560, width: 150, height: 120))   // New zone above return platform
     ]
-    
+
+    // Add new struct to make zones more configurable
+    struct HesitationZone {
+        let bounds: CGRect
+        var opacity: Double = 0.7
+        var color: Color = .red
+    }
+
     // Add new state variable for death cooldown
     @State private var canDie = true
     
@@ -412,15 +420,15 @@ struct Level2: View {
                     .zIndex(4)
                 }
                 
-                // Add hesitation zones visualization after background
+                // Update hesitation zones visualization with new properties
                 ForEach(hesitationZones.indices, id: \.self) { index in
                     Rectangle()
-                        .fill(Color.red)
-                        .opacity(0.7)
-                        .frame(width: hesitationZones[index].width, 
-                               height: hesitationZones[index].height)
-                        .position(x: hesitationZones[index].midX, 
-                                  y: hesitationZones[index].midY)
+                        .fill(hesitationZones[index].color)
+                        .opacity(hesitationZones[index].opacity)
+                        .frame(width: hesitationZones[index].bounds.width, 
+                               height: hesitationZones[index].bounds.height)
+                        .position(x: hesitationZones[index].bounds.midX, 
+                                 y: hesitationZones[index].bounds.midY)
                         .zIndex(0.1)
                 }
             }
@@ -655,7 +663,7 @@ struct Level2: View {
     }
     
     private func resetPosition() {
-        playerPosition = CGPoint(x: 130, y: 510)  // Reset to platform2
+        playerPosition = CGPoint(x: 110, y: 510)  // Reset to platform2
         playerVelocity = .zero
         isOnGround = true
         isMovingLeft = false
@@ -708,7 +716,7 @@ struct Level2: View {
         
         let wasInZone = isInHesitationZone
         isInHesitationZone = hesitationZones.contains { zone in
-            zone.intersects(playerBounds)
+            zone.bounds.intersects(playerBounds)
         }
         
         if !wasInZone && isInHesitationZone {
