@@ -451,7 +451,7 @@ struct Level3: View {
                 
                 // NEW: Level complete overlay
                 if isLevelComplete {
-                    Color.black.opacity(0.8)
+                    Color.black.opacity(1.0)
                         .ignoresSafeArea()
                         .zIndex(4)
                     VStack(spacing: 20) {
