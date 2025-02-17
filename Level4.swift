@@ -20,20 +20,22 @@ struct Level4: View {
 
     // NEW: Adjustable settings for 'platform4'
     private let platform4Size: CGSize = CGSize(width: 1200, height: 50)    // Adjust as needed.
-    private let platform4Position: CGPoint = CGPoint(x: 650, y: 550)        // Adjust as needed.
+    private let platform4Position: CGPoint = CGPoint(x: 600, y: 550)        // Adjust as needed.
     
     // NEW: Adjustable settings for three 'coffee' assets
-    private let coffee1Size: CGSize = CGSize(width: 22, height: 35)  // Adjust as needed.
-    private let coffee1Position: CGPoint = CGPoint(x: 850, y: 500)     // Adjust as needed.
-    private let coffee2Size: CGSize = CGSize(width: 22, height: 35)   // Adjust as needed.
-    private let coffee2Position: CGPoint = CGPoint(x: 950, y: 500)     // Adjust as needed.
-    private let coffee3Size: CGSize = CGSize(width: 22, height: 35)      // Adjust as needed.
-    private let coffee3Position: CGPoint = CGPoint(x: 1050, y: 500)     // Adjust as needed.
+    private let coffee1Size: CGSize = CGSize(width: 22, height: 35)
+    private let coffee1Position: CGPoint = CGPoint(x: 780, y: 500)
+    
+    private let coffee2Size: CGSize = CGSize(width: 22, height: 35)
+    private let coffee2Position: CGPoint = CGPoint(x: 860, y: 500)
+    
+    private let coffee3Size: CGSize = CGSize(width: 22, height: 35)
+    private let coffee3Position: CGPoint = CGPoint(x: 940, y: 500)
     
     // NEW: Player state variables and physics constants
     @State private var playerState: PlayerState = .idle
     @State private var playerFacingRight = false  // Changed from true to false for left-facing start
-    @State private var playerPosition = CGPoint(x: 1200, y: 300)           // Adjust starting position
+    @State private var playerPosition = CGPoint(x: 1100, y: 300)           // Adjust starting position
     @State private var playerVelocity = CGPoint.zero
     @State private var isOnGround = true
     @State private var isMovingLeft = false
@@ -54,22 +56,22 @@ struct Level4: View {
     @State private var showSwappedMessage = false
 
     // NEW: Rejected asset configuration constants
-    private let rejected1Size: CGSize = CGSize(width: 210, height: 100)       // Adjust size
-    private let rejected1Start: CGPoint = CGPoint(x: 300, y: 400)            // Adjust starting position
-    private let rejected1Speed: CGFloat = 9.0                                // Adjust speed
-    private let rejected1MaxTop: CGFloat = 200                               // Adjust max top (minimum y)
-    private let rejected1MaxBottom: CGFloat = 650                            // Adjust max bottom (maximum y)
-    private let rejected1Rotation: Angle = .degrees(90)                      // Adjust rotation
+    private let rejected1Size: CGSize = CGSize(width: 210, height: 100)
+    private let rejected1Start: CGPoint = CGPoint(x: 250, y: 400)    // Position
+    private let rejected1Speed: CGFloat = 9.0
+    private let rejected1MaxTop: CGFloat = 200
+    private let rejected1MaxBottom: CGFloat = 650
+    private let rejected1Rotation: Angle = .degrees(90)
 
     private let rejected2Size: CGSize = CGSize(width: 210, height: 100)
-    private let rejected2Start: CGPoint = CGPoint(x: 500, y: 400)
+    private let rejected2Start: CGPoint = CGPoint(x: 450, y: 400)
     private let rejected2Speed: CGFloat = 7.0
     private let rejected2MaxTop: CGFloat = 200
     private let rejected2MaxBottom: CGFloat = 650
     private let rejected2Rotation: Angle = .degrees(90)
 
     private let rejected3Size: CGSize = CGSize(width: 210, height: 100)
-    private let rejected3Start: CGPoint = CGPoint(x: 700, y: 400)
+    private let rejected3Start: CGPoint = CGPoint(x: 650, y: 400)
     private let rejected3Speed: CGFloat = 5.0
     private let rejected3MaxTop: CGFloat = 200
     private let rejected3MaxBottom: CGFloat = 650
@@ -87,7 +89,7 @@ struct Level4: View {
     
     // NEW: Home asset adjustment constants
     private let homeSize: CGSize = CGSize(width: 80, height: 80)   // Adjust as needed.
-    private let homePosition: CGPoint = CGPoint(x: 120, y: 480)       // Adjust as needed.
+    private let homePosition: CGPoint = CGPoint(x: 95, y: 480)       // Adjust as needed.
     
     // NEW: Bin asset size adjustment constant
     private let binSize: CGSize = CGSize(width: 80, height: 100)    // Adjust as needed.
@@ -111,7 +113,7 @@ struct Level4: View {
     private let glowingText = "/Users/You/Documents/WhyAreYouStillPlaying/Home.app"
 
     // NEW: Add glowing text position constants
-    private let glowingTextPosition = CGPoint(x: 650, y: 340)  // Adjust these values as needed
+    private let glowingTextPosition = CGPoint(x: 580, y: 340)  // Adjust these values as needed
 
     // NEW: Add BSOD state
     @State private var showBSOD = false
@@ -143,10 +145,10 @@ struct Level4: View {
 
     // Add hesitation zone configuration
     private let hesitationZones: [CGRect] = [
-        CGRect(x: 1000, y: 405, width: 130, height: 120),  // Before dark mode area
-        CGRect(x: 750, y: 405, width: 100, height: 120),   // Before moving obstacles
-        CGRect(x: 550, y: 405, width: 100, height: 120),
-        CGRect(x: 350, y: 405, width: 100, height: 120)
+        CGRect(x: 900, y: 405, width: 130, height: 120),  // Before coffee3
+        CGRect(x: 700, y: 405, width: 100, height: 120),   // Before obstacle3
+        CGRect(x: 500, y: 405, width: 100, height: 120),   // Before obstacle2
+        CGRect(x: 300, y: 405, width: 100, height: 120)    // Before obstacle1
     ]
     @State private var isInHesitationZone = false
     @State private var hesitationStartTime: Date?
@@ -482,20 +484,21 @@ struct Level4: View {
                     .zIndex(2000)
                 }
 
-                // UPDATED: BSOD overlay with X button
+                // UPDATED: BSOD overlay with adjusted position
                 if showBSOD {
                     ZStack {
                         Image("bsod")
                             .resizable()
                             .scaledToFill()
                             .ignoresSafeArea()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .offset(x: -50) // Move BSOD image 50 points to the left
                         
+                        // Rest of BSOD overlay content
                         if showXButton {
                             Button(action: {
-                                // Show troll message instead of closing BSOD
                                 withAnimation {
                                     showTrollMessage = true
-                                    // Hide message after 2 seconds
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                                         showTrollMessage = false
                                     }
@@ -505,8 +508,7 @@ struct Level4: View {
                                     .font(.system(size: 30))
                                     .foregroundColor(.white)
                             }
-                            .position(x: geometry.size.width - 50, y: 50)
-                            .transition(.opacity)
+                            .position(x: geometry.size.width - 70, y: 50) // Adjust X button position
                         }
 
                         // Troll message overlay
@@ -554,7 +556,7 @@ struct Level4: View {
 
                 // Add ML insights overlay after BSOD
                 if !showBSOD && predictionMessage != nil {
-                    Color.black.opacity(0.8)
+                    Color.black.opacity(1.0)
                         .ignoresSafeArea()
                         .zIndex(3001)
                     
@@ -831,7 +833,7 @@ struct Level4: View {
     
     // NEW: Reset player's position.
     private func resetPlayer() {
-        playerPosition = CGPoint(x: 1200, y: 300) // Updated reset to x = 1200 remains
+        playerPosition = CGPoint(x: 1100, y: 300) // Updated reset to x = 1200 remains
         playerVelocity = .zero
         isOnGround = true
         isMovingLeft = false
