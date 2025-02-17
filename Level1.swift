@@ -8,7 +8,7 @@ struct Level1: View {
     @State private var playerFacingRight = true
     
     // Add player state
-    @State private var playerPosition = CGPoint(x: 200, y: 510) // y value adjusted to be on platform
+    @State private var playerPosition = CGPoint(x: 120, y: 510) // y value adjusted to be on platform
     @State private var playerVelocity = CGPoint.zero
     @State private var isOnGround = true
     @State private var isMovingLeft = false
@@ -44,8 +44,8 @@ struct Level1: View {
 
     // NEW: Hesitation zone configuration
     private let hesitationZones: [CGRect] = [
-        CGRect(x: 260, y: 460, width: 130, height: 120),  // Before coffee3
-        CGRect(x: 890, y: 460, width: 130, height: 120)   // Before coffee7
+        CGRect(x: 380, y: 460, width: 130, height: 120),  // Before coffee3
+        CGRect(x: 800, y: 460, width: 130, height: 120)   // Before coffee7
     ]
     @State private var isInHesitationZone = false
     @State private var hesitationStartTime: Date?
@@ -59,7 +59,7 @@ struct Level1: View {
     
     // Platform bounds adjusted for precise collision
     private let platformBounds = (
-        left: CGFloat(170),  // Platform start x position
+        left: CGFloat(50),  // Platform start x position
         right: CGFloat(1170), // Platform end x position
         y: CGFloat(600)     // Platform y position
     )
@@ -69,17 +69,17 @@ struct Level1: View {
     
     // Existing coffee config
     private let coffeeConfig: [(CGFloat, CGFloat, Bool)] = [
-        (350, 550, false),  // coffee1
-        (455, 550, false),  // coffee2
-        (560, 550, false),   // coffee3 - deadly
-        (665, 550, false),  // coffee4
-        (770, 550, false),  // coffee5
-        (875, 550, false),  // coffee6
-        (980, 550, false)   // coffee7 - deadly
+        (250, 550, false),  // coffee1
+        (358.33, 550, false),  // coffee2
+        (466.67, 550, false),   // coffee3 - deadly
+        (575, 550, false),  // coffee4
+        (683.33, 550, false),  // coffee5
+        (791.67, 550, false),  // coffee6
+        (900, 550, false)   // coffee7 - deadly
     ]
     
     // Add home position constant
-    private let homePosition = CGPoint(x: 1100, y: 535)
+    private let homePosition = CGPoint(x: 1050, y: 535)
     
     @State private var walkFrame = 1
     @State private var lastAnimationTime = Date()
@@ -114,10 +114,10 @@ struct Level1: View {
     }
     
     // NEW: Configurable terminal asset settings.
-    private let terminalConfig = (position: CGPoint(x: 670, y: 300), size: CGSize(width: 900, height: 300))
+    private let terminalConfig = (position: CGPoint(x: 600, y: 300), size: CGSize(width: 900, height: 300))
 
     // NEW: Configurable debug overlay settings.
-    private let debugOverlayConfig = (position: CGPoint(x: 630, y: 315), size: CGSize(width: 800, height: 230))
+    private let debugOverlayConfig = (position: CGPoint(x: 565, y: 315), size: CGSize(width: 800, height: 230))
 
     // UPDATED: Instantiate the PlayerClassifier model as a constant.
     // Comment out auto-generated model reference if not available:
@@ -206,7 +206,7 @@ struct Level1: View {
                     Image("platform1")
                         .resizable()
                         .frame(width: 1000, height: 50)
-                        .position(x: 670, y: platformY)
+                        .position(x: 590, y: platformY)
                     
                     // Player
                     Player(currentState: playerState, facingRight: playerFacingRight, walkFrame: walkFrame)
@@ -278,7 +278,7 @@ struct Level1: View {
                     Image("Home")
                         .resizable()
                         .frame(width: 95, height: 80)
-                        .position(x: 1100, y: 535)
+                        .position(x: 1050, y: 535)
                 }
                 .zIndex(1)
                 
@@ -457,7 +457,7 @@ struct Level1: View {
         let newY = playerPosition.y + playerVelocity.y
         
         // Platform collision detection
-        let platformLeft = 170.0  // Left edge of platform
+        let platformLeft = 100.0  // Left edge of platform
         let platformRight = 1170.0 // Right edge of platform
         let platformTopY = platformY - (platformHeight / 2) - (playerHeight / 2)
         
@@ -659,7 +659,7 @@ struct Level1: View {
             if coffeeConfig[index].2 { // If coffee is deadly
                 isDead = true
                 // Reset player position when dead
-                playerPosition = CGPoint(x: 400, y: 515)
+                playerPosition = CGPoint(x: 120, y: 515)
                 playerVelocity = .zero
                 isOnGround = true
                 debugLog("Coffee\(index + 1) is deadly, player died of common sense...")
@@ -671,7 +671,7 @@ struct Level1: View {
     }
     
     private func resetPlayerPosition() {
-        playerPosition = CGPoint(x: 200, y: 510)  // Reset to adjusted initial position
+        playerPosition = CGPoint(x: 120, y: 510)  // Reset to adjusted initial position
         playerVelocity = .zero
         isOnGround = true
         // Reset any movement states
@@ -708,7 +708,7 @@ struct Level1: View {
     }
     
     private func resetPosition() {
-        playerPosition = CGPoint(x: 200, y: 510)
+        playerPosition = CGPoint(x: 120, y: 510)
         playerVelocity = .zero
         isOnGround = true
         isMovingLeft = false
