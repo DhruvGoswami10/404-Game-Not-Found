@@ -21,7 +21,7 @@ struct SecretLevel: View {
     
     // Configuration for command text
     private let commandConfig = (
-        position: CGPoint(x: 1150, y: 545),    // Position above intern
+        position: CGPoint(x: 900, y: 545),    // Position above intern
         size: CGFloat(16),                     // Font size
         typingSpeed: TimeInterval(0.05),       // Speed of typing
         commands: [
@@ -42,13 +42,13 @@ struct SecretLevel: View {
     // Platform configuration
     private let secretPlatConfig = (
         size: CGSize(width: 1200, height: 50),    // Adjust size as needed
-        position: CGPoint(x: 650, y: 650)         // Adjust position as needed
+        position: CGPoint(x: 600, y: 650)         // Adjust position as needed
     )
 
     // Add intern configuration
     private let internConfig = (
         size: CGSize(width: 40, height: 60),    // Adjust size as needed
-        position: CGPoint(x: 1150, y: 595)         // Adjust position as needed
+        position: CGPoint(x: 900, y: 595)         // Adjust position as needed
     )
     
     // Update error code configurations to include all error codes
