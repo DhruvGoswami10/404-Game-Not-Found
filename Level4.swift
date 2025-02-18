@@ -9,15 +9,14 @@ func debugLog(_ message: String) {
 
 struct Level4: View {
     @EnvironmentObject private var levelManager: LevelManager  // NEW: Added environment object for levelManager
-
+    
     // NEW: Computed death counter and deathNotes for level 4
-    private var deathCount: Int {
-        levelManager.getDeathCount(for: 4)
-    }
+    @State private var deathCount: Int = 0
+
     private var deathNotes: [(note: String, position: CGPoint, rotation: Double)] {
         levelManager.getDeathNotes(for: 4)
     }
-
+    
     // NEW: Adjustable settings for 'platform4'
     private let platform4Size: CGSize = CGSize(width: 1200, height: 50)    // Adjust as needed.
     private let platform4Position: CGPoint = CGPoint(x: 600, y: 550)        // Adjust as needed.
@@ -54,36 +53,35 @@ struct Level4: View {
     // NEW: New state to toggle swapped controls and show message
     @State private var swappedControls = false
     @State private var showSwappedMessage = false
-
-    // NEW: Rejected asset configuration constants
+    
     private let rejected1Size: CGSize = CGSize(width: 210, height: 100)
-    private let rejected1Start: CGPoint = CGPoint(x: 250, y: 400)    // Position
+    private let rejected1Start: CGPoint = CGPoint(x: 250, y: 400)
     private let rejected1Speed: CGFloat = 9.0
     private let rejected1MaxTop: CGFloat = 200
     private let rejected1MaxBottom: CGFloat = 650
     private let rejected1Rotation: Angle = .degrees(90)
-
+    
     private let rejected2Size: CGSize = CGSize(width: 210, height: 100)
     private let rejected2Start: CGPoint = CGPoint(x: 450, y: 400)
     private let rejected2Speed: CGFloat = 7.0
     private let rejected2MaxTop: CGFloat = 200
     private let rejected2MaxBottom: CGFloat = 650
     private let rejected2Rotation: Angle = .degrees(90)
-
+    
     private let rejected3Size: CGSize = CGSize(width: 210, height: 100)
     private let rejected3Start: CGPoint = CGPoint(x: 650, y: 400)
     private let rejected3Speed: CGFloat = 5.0
     private let rejected3MaxTop: CGFloat = 200
     private let rejected3MaxBottom: CGFloat = 650
     private let rejected3Rotation: Angle = .degrees(90)
-
+    
     // NEW: Rejected asset state variables
     @State private var rejected1Position: CGPoint
     @State private var rejected1MovingUp: Bool = true
-
+    
     @State private var rejected2Position: CGPoint
     @State private var rejected2MovingUp: Bool = true
-
+    
     @State private var rejected3Position: CGPoint
     @State private var rejected3MovingUp: Bool = true
     
@@ -102,29 +100,29 @@ struct Level4: View {
     // NEW: Add death and completion states
     @State private var isDead = false
     @State private var isLevelComplete = false
-
+    
     // NEW: Add dark mode states
     @State private var isDarkMode = false
     @State private var showTorch = false
     @State private var torchPosition: CGPoint = .zero
-
+    
     // NEW: Add glowing text state
     @State private var showGlowingText = false
     private let glowingText = "/Users/You/Documents/WhyAreYouStillPlaying/Home.app"
-
+    
     // NEW: Add glowing text position constants
     private let glowingTextPosition = CGPoint(x: 580, y: 340)  // Adjust these values as needed
-
+    
     // NEW: Add BSOD state
     @State private var showBSOD = false
     
     // NEW: Add text collision bounds
     private let glowingTextSize = CGSize(width: 400, height: 40)  // Adjust based on text size
-
+    
     // NEW: Add states for X button and message
     @State private var showXButton = false
     @State private var showMessage = false
-
+    
     // Add ML-related state variables after existing state variables
     private let typeClassifier: PlayerTypeClassifier? = try? PlayerTypeClassifier()
     private let frustrationModel: PlayerFrustration? = try? PlayerFrustration()
@@ -133,16 +131,16 @@ struct Level4: View {
     @State private var hesitationCount: Int = 0
     @State private var totalTimeSpent: TimeInterval = 0
     @State private var levelStartTime = Date()
-
+    
     // Add new state for troll message
     @State private var showTrollMessage = false
-
+    
     // Add new state variable for timesFooled
     @State private var timesFooled: Int = 0
-
+    
     // Add state to track which obstacles have already fooled the player
     @State private var hasBeenFooledBy: Set<String> = []
-
+    
     // Add hesitation zone configuration
     private let hesitationZones: [CGRect] = [
         CGRect(x: 900, y: 405, width: 130, height: 120),  // Before coffee3
@@ -153,6 +151,9 @@ struct Level4: View {
     @State private var isInHesitationZone = false
     @State private var hesitationStartTime: Date?
     private let hesitationThreshold: TimeInterval = 1.0
+    
+    // Add new state variable to track if obstacles should be visible
+    @State private var showObstacles = true
 
     init() {
         _rejected1Position = State(initialValue: rejected1Start)
@@ -211,12 +212,12 @@ struct Level4: View {
                         .frame(width: hesitationZones[index].width, 
                                height: hesitationZones[index].height)
                         .position(x: hesitationZones[index].midX, 
-                                 y: hesitationZones[index].midY)
+                                  y: hesitationZones[index].midY)
                         .zIndex(0.1)
                 }
-
+                
                 // NEW: Conditionally show game elements based on dark mode
-                if !isDarkMode {
+                if !isDarkMode && showObstacles {  // Add showObstacles condition
                     // Show regular game elements
                     Group {
                         // Coffee assets
@@ -252,6 +253,11 @@ struct Level4: View {
                     }
                 }
                 
+                // ...existing code...
+                // Add actual collision hitbox visualization for rejected1 and rejected2
+
+                // ...existing code...
+                
                 // NEW: Conditionally show Home asset.
                 if homeVisible {
                     Image("Home")
@@ -281,6 +287,14 @@ struct Level4: View {
                         }
                     }
                 
+                // Add player collision box visualization
+                Rectangle()
+                    .stroke(Color.blue, lineWidth: 2)
+                    .fill(Color.blue.opacity(0.2))
+                    .frame(width: 50, height: 70) // Match the collision box size used in physics
+                    .position(playerPosition)
+                    .zIndex(0.5)
+
                 // Display swapped message overlay when active.
                 if showSwappedMessage {
                     Text("Left is the new right")
@@ -376,9 +390,8 @@ struct Level4: View {
                         .padding()
                         .zIndex(4)
                         .onAppear {
-                            levelManager.incrementDeathCount(for: 4)
-                            addDeathNote(in: geometry)
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                            // Automatically clear death overlay after 2 seconds
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                                 isDead = false
                             }
                         }
@@ -427,7 +440,7 @@ struct Level4: View {
                 .cornerRadius(10)
                 .position(x: 100, y: 50)
                 .zIndex(3)
-
+                
                 // NEW: Dark overlay with torch effect and glowing text
                 if isDarkMode {
                     ZStack {
@@ -483,7 +496,7 @@ struct Level4: View {
                     .allowsHitTesting(false)
                     .zIndex(2000)
                 }
-
+                
                 // UPDATED: BSOD overlay with adjusted position
                 if showBSOD {
                     ZStack {
@@ -510,7 +523,7 @@ struct Level4: View {
                             }
                             .position(x: geometry.size.width - 70, y: 50) // Adjust X button position
                         }
-
+                        
                         // Troll message overlay
                         if showTrollMessage {
                             Text("Nice try, wait for machine to troll you")
@@ -553,7 +566,7 @@ struct Level4: View {
                         }
                     }
                 }
-
+                
                 // Add ML insights overlay after BSOD
                 if !showBSOD && predictionMessage != nil {
                     Color.black.opacity(1.0)
@@ -640,51 +653,7 @@ struct Level4: View {
                 showSwappedMessage = false
             }
         }
-
-        // Add coffee3 collision check
-        let coffee3Frame = CGRect(
-            x: coffee3Position.x - coffee3Size.width/2,
-            y: coffee3Position.y - coffee3Size.height/2,
-            width: coffee3Size.width,
-            height: coffee3Size.height
-        )
-        if playerFrame.intersects(coffee3Frame) {
-            if !hasBeenFooledBy.contains("coffee3") {
-                timesFooled += 1
-                hasBeenFooledBy.insert("coffee3")
-                debugLog("Fooled by coffee3!")
-            }
-        }
-
-        // Update rejected3 collision check
-        let rejected3Frame = CGRect(
-            x: rejected3Position.x - rejected3Size.width/2,
-            y: rejected3Position.y - rejected3Size.height/2,
-            width: rejected3Size.width,
-            height: rejected3Size.height
-        )
-        if playerFrame.intersects(rejected3Frame) {
-            if !hasBeenFooledBy.contains("rejected3") {
-                timesFooled += 1
-                hasBeenFooledBy.insert("rejected3")
-                debugLog("Fooled by rejected3!")
-            }
-        }
         
-        // Reset player if out of bounds
-        if playerPosition.y > geometry.size.height + 100 {
-            handleDeath(in: geometry)
-        }
-        // NEW: When player reaches x <= 200, trigger bin animation.
-        if playerPosition.x <= 300 && homeVisible {
-            homeVisible = false
-            showBin = true
-            // Animate bin upward from platform4 bottom to homePosition.
-            withAnimation(Animation.easeOut(duration: 1.0)) {
-                binPosition = homePosition
-            }
-        }
-
         // Check bin collision
         let binFrame = CGRect(
             x: binPosition.x - binSize.width/2,
@@ -694,6 +663,7 @@ struct Level4: View {
         )
         
         if playerFrame.intersects(binFrame) && showBin {
+            showObstacles = false
             // Trigger dark mode and show glowing text with delay
             withAnimation(.easeInOut(duration: 1.0)) {
                 isDarkMode = true
@@ -705,7 +675,98 @@ struct Level4: View {
                 }
             }
         }
+        
+        // Only check obstacle collisions if they are visible
+        if showObstacles {
+            // Coffee3 collision check
+            let coffee3Frame = CGRect(
+                x: coffee3Position.x - coffee3Size.width/2,
+                y: coffee3Position.y - coffee3Size.height/2,
+                width: coffee3Size.width,
+                height: coffee3Size.height
+            )
+            if playerFrame.intersects(coffee3Frame) {
+                if isDead { return }
+                isDead = true
+                // Increment both local death count and level manager death count
+                deathCount += 1
+                levelManager.incrementDeathCount(for: 4)
+                currentLevelDeaths += 1
+                debugLog("Killed by coffee3! Death count: \(deathCount)")
+                resetPlayer()
+                handleDeath(in: geometry)
+                return
+            }
 
+            // Rejected1 collision check
+            let rejected1Frame = CGRect(
+                x: rejected1Position.x - rejected1Size.height/2, // Note: width and height are swapped due to rotation
+                y: rejected1Position.y - rejected1Size.width/2,
+                width: rejected1Size.height,
+                height: rejected1Size.width
+            )
+            if playerFrame.intersects(rejected1Frame) {
+                if isDead { return }
+                isDead = true
+                deathCount += 1
+                levelManager.incrementDeathCount(for: 4)
+                currentLevelDeaths += 1
+                debugLog("Killed by rejected1! Death count: \(deathCount)")
+                resetPlayer()
+                handleDeath(in: geometry)
+                return
+            }
+
+            // Rejected2 collision check
+            let rejected2Frame = CGRect(
+                x: rejected2Position.x - rejected2Size.height/2, // Note: width and height are swapped due to rotation
+                y: rejected2Position.y - rejected2Size.width/2,
+                width: rejected2Size.height,
+                height: rejected2Size.width
+            )
+            if playerFrame.intersects(rejected2Frame) {
+                if isDead { return }
+                isDead = true
+                deathCount += 1
+                levelManager.incrementDeathCount(for: 4)
+                currentLevelDeaths += 1
+                debugLog("Killed by rejected2! Death count: \(deathCount)")
+                resetPlayer()
+                handleDeath(in: geometry)
+                return
+            }
+
+            // Rejected3 collision check
+            let rejected3Frame = CGRect(
+                x: rejected3Position.x - rejected3Size.width/2,
+                y: rejected3Position.y - rejected3Size.height/2,
+                width: rejected3Size.width,
+                height: rejected3Size.height
+            )
+            if playerFrame.intersects(rejected3Frame) {
+                if !hasBeenFooledBy.contains("rejected3") {
+                    timesFooled += 1
+                    hasBeenFooledBy.insert("rejected3")
+                    debugLog("Fooled by rejected3!")
+                }
+            }
+        }
+        
+        // Reset player if out of bounds
+        if playerPosition.y > geometry.size.height + 100 {
+            handleDeath(in: geometry)
+        }
+        
+        // NEW: When player reaches x <= 200, trigger bin animation.
+        if playerPosition.x <= 300 && homeVisible {
+            homeVisible = false
+            showBin = true
+            // Animate bin upward from platform4 bottom to homePosition.
+            withAnimation(Animation.easeOut(duration: 1.0)) {
+                binPosition = homePosition
+            }
+        }
+        
         // NEW: Check for glowing text collision
         if isDarkMode && showGlowingText {
             let textBounds = CGRect(
@@ -729,11 +790,11 @@ struct Level4: View {
             }
         }
     }
-    
-    // NEW: Update player state based on movement.
+
+    // Move these functions outside of updatePhysics
     private func updatePlayerState() {
         if isDead { return }
-
+        
         // Check if player is in any hesitation zone
         let playerBounds = CGRect(
             x: playerPosition.x - 25,
@@ -768,7 +829,7 @@ struct Level4: View {
         } else if !isInHesitationZone {
             hesitationStartTime = nil  // Reset timer when moving or outside zone
         }
-
+        
         if !isOnGround {
             playerState = .jumping
         } else if isMovingLeft || isMovingRight {
@@ -777,8 +838,7 @@ struct Level4: View {
             playerState = .idle
         }
     }
-    
-    // NEW: Update running animation frame
+
     private func updateAnimation() {
         if playerState == .walking {
             let now = Date()
@@ -790,8 +850,7 @@ struct Level4: View {
             walkFrame = 1
         }
     }
-    
-    // NEW: Function to update rejected assets vertical movement
+
     private func updateRejected() {
         // Update rejected1
         if rejected1MovingUp {
@@ -830,20 +889,19 @@ struct Level4: View {
             }
         }
     }
-    
-    // NEW: Reset player's position.
+
     private func resetPlayer() {
-        playerPosition = CGPoint(x: 1100, y: 300) // Updated reset to x = 1200 remains
+        playerPosition = CGPoint(x: 1100, y: 300) // Reset to starting position
         playerVelocity = .zero
         isOnGround = true
         isMovingLeft = false
         isMovingRight = false
         playerState = .idle
-        playerFacingRight = false  // Reset to face left
-        hasBeenFooledBy.removeAll() // Allow player to be fooled again after death
+        playerFacingRight = false
+        hasBeenFooledBy.removeAll()
+        swappedControls = false // Reset swapped controls state too
     }
-    
-    // NEW: Add death note function
+
     private func addDeathNote(in geometry: GeometryProxy) {
         let notes = ["note1", "note2", "note3", "note4", "note5"]
         let noteIndex = deathCount % notes.count
@@ -858,14 +916,21 @@ struct Level4: View {
             rotation: rotation
         )
     }
-    
-    // NEW: Add handleDeath function
+
+    // Update the handleDeath function to manage the death overlay timing
     private func handleDeath(in geometry: GeometryProxy) {
+        if isDead { return }
         isDead = true
-        resetPlayer()
+
+        levelManager.incrementDeathCount(for: 4)  // Increment count in LevelManager
+        deathCount = levelManager.getDeathCount(for: 4)
+
+        addDeathNote(in: geometry)
+        resetPlayer()  // Reset player position immediately
+        
+        // No need to set timer here as it's handled in the overlay
     }
 
-    // Update checkHomeCollision() to include ML insights
     private func checkHomeCollision() {
         let playerBounds = CGRect(
             x: playerPosition.x - 25,
@@ -903,12 +968,32 @@ struct Level4: View {
             )
         }
     }
-}
 
-struct Level4_Previews: PreviewProvider {
-    static var previews: some View {
-        Level4()
-            .environmentObject(LevelManager()) // NEW: Inject LevelManager instance
+    // Add the playerDied function to handle player death
+    private func playerDied(in geometry: GeometryProxy) {
+        isDead = true
+        isMovingLeft = false
+        isMovingRight = false
+        playerVelocity = .zero
+        
+        // Add death note and increment death count
+        currentLevelDeaths += 1
+        levelManager.incrementDeathCount(for: 4)
+        debugLog("Killed by rejected! Death count: \(currentLevelDeaths)")
+        addDeathNote(in: geometry)
+        
+        // Handle player death animation and respawn
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            resetPlayer()
+            isDead = false
+        }
+    }
+    
+    struct Level4_Previews: PreviewProvider {
+        static var previews: some View {
+            Level4()
+                .environmentObject(LevelManager()) // NEW: Inject LevelManager instance
+        }
     }
 }
 
