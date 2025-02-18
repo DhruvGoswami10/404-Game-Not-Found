@@ -155,6 +155,30 @@ struct Level2: View {
     // Remove timesFooled state variables
     @State private var hasBeenFooledBy: Set<String> = []
 
+    // Add new state variables for installer transition
+    @State private var showInstaller = false
+    @State private var installerText = "INSTALLING LEVEL3.swift..."
+    @State private var progressValue: Double = 0
+    @State private var showError = false
+    @State private var showGhostText = false
+    @State private var isGlitching = false
+    
+    // Define installer sequence
+    private let installerSequence = [
+        (text: "INSTALLING LEVEL3.swift...\nEstimated Time: 10 seconds", progress: 0.67, delay: 2.0),
+        (text: "ERROR: Install Failed.\nRetrying...", progress: 0.42, delay: 1.5),
+        (text: "", progress: 0.73, delay: 0.5),
+        (text: "", progress: 0.0, delay: 1.0)
+    ]
+
+    // Update installer states
+    @State private var showInstallerOverlay = false
+    @State private var redFlashOpacity = 0.0
+    @State private var flashCount = 0
+    private let maxFlashes = 3
+    private let flashDuration = 0.3
+    private let flashInterval = 0.5
+
     init() {
         // Initialize spinner position at left boundary
         _spinnerPosition = State(initialValue: CGPoint(
@@ -349,11 +373,69 @@ struct Level2: View {
                         .ignoresSafeArea()
                         .zIndex(4)
                     
-                    Text("LEVEL COMPLETE!")
-                        .font(.system(size: 64, weight: .bold))
-                        .foregroundColor(.green)
+                    if !showInstaller {
+                        // Show initial completion message
+                        VStack(spacing: 20) {
+                            if let msg = predictionMessage {
+                                Text(msg)
+                                    .font(.system(size: 28, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding()
+                            } else {
+                                Text("Calculating your player style...")
+                                    .font(.system(size: 24, weight: .regular))
+                                    .foregroundColor(.white)
+                                    .padding()
+                            }
+                            Button("Continue") {
+                                startInstallerSequence()
+                            }
+                            .font(.system(size: 24, weight: .bold))
+                            .padding()
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
+                        }
+                        .zIndex(5)
+                    } else {
+                        // Installer interface
+                        VStack(spacing: 20) {
+                            Text(installerText)
+                                .font(.system(size: 24, weight: .regular, design: .monospaced))
+                                .foregroundColor(.green)
+                                .multilineTextAlignment(.leading)
+                                .opacity(isGlitching ? 0.5 : 1)
+                            
+                            // Progress bar
+                            GeometryReader { metrics in
+                                ZStack(alignment: .leading) {
+                                    Rectangle()
+                                        .fill(Color.gray.opacity(0.3))
+                                    
+                                    Rectangle()
+                                        .fill(Color.green)
+                                        .frame(width: metrics.size.width * progressValue)
+                                        .opacity(isGlitching ? 0.7 : 1)
+                                }
+                            }
+                            .frame(height: 20)
+                            .cornerRadius(10)
+                        }
                         .padding()
-                        .zIndex(4)
+                        .background(Color.black.opacity(0.9))
+                        .cornerRadius(15)
+                        .padding()
+                        .zIndex(5)
+                    }
+                    
+                    // Ghost text overlay
+                    if showGhostText {
+                        Text("Installation incomplete. Proceeding anyway...")
+                            .font(.system(size: 20, weight: .light))
+                            .foregroundColor(.white.opacity(0.5))
+                            .padding()
+                            .zIndex(6)
+                    }
                 }
                 
                 // Add death overlay with single increment
@@ -430,6 +512,59 @@ struct Level2: View {
                         .position(x: hesitationZones[index].bounds.midX, 
                                  y: hesitationZones[index].bounds.midY)
                         .zIndex(0.1)
+                }
+
+                // New installer overlay
+                if showInstaller {
+                    // Dark grey background overlay
+                    Color(red: 0.2, green: 0.2, blue: 0.2)
+                        .ignoresSafeArea()
+                        .opacity(0.95)
+                        .zIndex(5)
+                    
+                    // Red flash overlay
+                    Color.red
+                        .ignoresSafeArea()
+                        .opacity(redFlashOpacity)
+                        .zIndex(6)
+                    
+                    // Installer content
+                    VStack(spacing: 20) {
+                        Text(installerText)
+                            .font(.system(size: 24, weight: .regular, design: .monospaced))
+                            .foregroundColor(.green)
+                            .multilineTextAlignment(.leading)
+                            .opacity(isGlitching ? 0.5 : 1)
+                        
+                        // Progress bar
+                        GeometryReader { metrics in
+                            ZStack(alignment: .leading) {
+                                Rectangle()
+                                    .fill(Color.gray.opacity(0.3))
+                                
+                                Rectangle()
+                                    .fill(Color.green)
+                                    .frame(width: metrics.size.width * progressValue)
+                                    .opacity(isGlitching ? 0.7 : 1)
+                            }
+                        }
+                        .frame(height: 20)
+                        .cornerRadius(10)
+                    }
+                    .padding()
+                    .background(Color.black)
+                    .cornerRadius(15)
+                    .padding()
+                    .zIndex(7)
+                    
+                    // Ghost text overlay
+                    if showGhostText {
+                        Text("Installation incomplete. Proceeding anyway...")
+                            .font(.system(size: 20, weight: .light))
+                            .foregroundColor(.white.opacity(0.7))
+                            .padding()
+                            .zIndex(8)
+                    }
                 }
             }
         }
@@ -863,6 +998,64 @@ struct Level2: View {
             playerVelocity.y = 0
             isOnGround = true
             playerState = .idle
+        }
+    }
+
+    // Add new transition handling functions
+    private func startInstallerSequence() {
+        showInstaller = true
+        showInstallerOverlay = true
+        
+        // Run through installer sequence
+        var totalDelay: Double = 0
+        for (index, sequence) in installerSequence.enumerated() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + totalDelay) {
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    installerText = sequence.text
+                    progressValue = sequence.progress
+                    isGlitching = index >= 2  // Start glitching at retry attempts
+                }
+            }
+            totalDelay += sequence.delay
+        }
+        
+        // Show ghost text and start red flashing
+        DispatchQueue.main.asyncAfter(deadline: .now() + totalDelay) {
+            withAnimation(.easeIn(duration: 0.3)) {
+                showGhostText = true
+            }
+            startRedFlashing()
+        }
+    }
+    
+    // Add new function for red flashing effect
+    private func startRedFlashing() {
+        guard flashCount < maxFlashes else {
+            // Transition to next level after flashing completes
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                withAnimation {
+                    showGhostText = false
+                    levelManager.currentState = .level(3)
+                }
+            }
+            return
+        }
+        
+        // Fade in red
+        withAnimation(.easeIn(duration: flashDuration)) {
+            redFlashOpacity = 0.3 // Subtle red flash
+        }
+        
+        // Fade out red and schedule next flash
+        DispatchQueue.main.asyncAfter(deadline: .now() + flashDuration) {
+            withAnimation(.easeOut(duration: flashDuration)) {
+                redFlashOpacity = 0
+            }
+            
+            flashCount += 1
+            DispatchQueue.main.asyncAfter(deadline: .now() + flashInterval) {
+                startRedFlashing()
+            }
         }
     }
 }
