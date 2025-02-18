@@ -133,6 +133,20 @@ struct Level1: View {
     private let typeClassifier: PlayerTypeClassifier? = try? PlayerTypeClassifier()
     private let frustrationModel: PlayerFrustration? = try? PlayerFrustration()
 
+    // Add new state variables for transition effects
+    @State private var fadeToBlack = false
+    @State private var showTerminal = false
+    @State private var terminalText = ""
+    @State private var glitchEffect = false
+    @State private var showWarning = false
+    
+    private let terminalLines = [
+        "SYSTEM CHECK COMPLETE.\n",
+        "Applying Physics Patch 1.0...\n",
+        "- Gravity Inversion: Enabled\n",
+        "- Player Adaptation: 0% (Good luck.)\n"
+    ]
+
     var body: some View {
         GeometryReader { geometry in
             ZStack {
@@ -390,7 +404,8 @@ struct Level1: View {
                 
                 // NEW: Level Complete overlay showing prediction message.
                 if isLevelComplete {
-                    Color.black.ignoresSafeArea()
+                    Color.black.opacity(fadeToBlack ? 1 : 1.0)
+                        .ignoresSafeArea()
                         .zIndex(4)
                         .onAppear {
                             predictionMessage = MLInsights.getPredictionMessage(
@@ -405,30 +420,54 @@ struct Level1: View {
                                 frustrationModel: frustrationModel
                             )
                         }
-                    VStack(spacing: 20) {
-                        if let msg = predictionMessage {
-                            Text(msg)
-                                .font(.system(size: 28, weight: .bold))
-                                .foregroundColor(.white)
-                                .padding()
-                        } else {
-                            Text("Calculating your player style...")
-                                .font(.system(size: 24, weight: .regular))
-                                .foregroundColor(.white)
-                                .padding()
+                    if !showTerminal {
+                        // Show initial completion message
+                        VStack(spacing: 20) {
+                            if let msg = predictionMessage {
+                                Text(msg)
+                                    .font(.system(size: 28, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding()
+                            } else {
+                                Text("Calculating your player style...")
+                                    .font(.system(size: 24, weight: .regular))
+                                    .foregroundColor(.white)
+                                    .padding()
+                            }
+                            Button("Continue") {
+                                startTransition()
+                            }
+                            .font(.system(size: 24, weight: .bold))
+                            .padding()
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
                         }
-                        Button("Continue") {
-                            withAnimation {
-                                levelManager.currentState = .level(2)
+                        .zIndex(5)
+                    } else {
+                        // Show terminal animation
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(terminalText)
+                                .font(.system(size: 18, weight: .bold, design: .monospaced))
+                                .foregroundColor(.green)
+                                .multilineTextAlignment(.leading)
+                                .padding()
+                            
+                            if showWarning {
+                                Text("WARNING: User experience may suffer.")
+                                    .font(.system(size: 18, weight: .bold, design: .monospaced))
+                                    .foregroundColor(.red)
+                                    .opacity(glitchEffect ? 0.5 : 1)
+                                    .animation(.easeInOut(duration: 0.1).repeatForever(autoreverses: true), 
+                                             value: glitchEffect)
                             }
                         }
-                        .font(.system(size: 24, weight: .bold))
                         .padding()
-                        .background(Color.blue)
-                        .foregroundColor(.white)
+                        .background(Color.black.opacity(0.8))
                         .cornerRadius(10)
+                        .transition(.opacity)
+                        .zIndex(5)
                     }
-                    .zIndex(4)
                 }
             }
             .onAppear {
@@ -722,6 +761,48 @@ struct Level1: View {
         lastMovementTime = Date()
         // Don't reset currentLevelDeaths here, as we want to track all deaths in current attempt
         levelStartTime = Date() // Reset level timer
+    }
+
+    // Add new transition handling functions
+    private func startTransition() {
+        withAnimation(.easeIn(duration: 1)) {
+            fadeToBlack = true
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            showTerminal = true
+            typeText()
+        }
+    }
+    
+    private func typeText() {
+        var currentText = ""
+        for (index, line) in terminalLines.enumerated() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.8) {
+                withAnimation {
+                    currentText += line
+                    terminalText = currentText
+                }
+            }
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+            withAnimation {
+                glitchEffect = true
+            }
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.5) {
+            withAnimation {
+                showWarning = true
+            }
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
+            withAnimation {
+                levelManager.currentState = .level(2)
+            }
+        }
     }
 }
 
