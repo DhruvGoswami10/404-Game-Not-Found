@@ -74,7 +74,7 @@ struct Level3: View {
     }
     
     // Configurable eof parameters.
-    private let eofStartPosition: CGPoint = CGPoint(x: 150, y: 300)  // adjust starting position here
+    private let eofStartPosition: CGPoint = CGPoint(x: 10, y: 300)  // adjust starting position here
     private let eofSize: CGSize = CGSize(width: 120, height: 80)        // adjust size here
     private let eofTargetX: CGFloat = 1050   // move right until this x
     private let eofTargetY: CGFloat = 500   // then down until this y
@@ -107,7 +107,7 @@ struct Level3: View {
     
     // NEW: Spike3 movement configuration
     private let spike3Config = (
-        position: CGPoint(x: 800, y: 485),
+        position: CGPoint(x: 400, y: 485),
         size: CGSize(width: 50, height: 35),
         activationRadius: CGFloat(100),  // How close player needs to be to trigger
         targetX: CGFloat(300),           // Changed from 900 to 700 to move left
@@ -672,6 +672,86 @@ struct Level3: View {
             isDead = true
             handleDeath(in: geometry)
         }
+
+        // Check spike collisions
+        // Using the previously defined playerRect for collision checks
+
+        // Spike1 collision
+        let spike1Bounds = CGRect(
+            x: spikePosition.x - spikeSize.width/2,
+            y: spikePosition.y - spikeSize.height/2,
+            width: spikeSize.width,
+            height: spikeSize.height
+        )
+        if playerRect.intersects(spike1Bounds) {
+            isDead = true
+            currentLevelDeaths += 1
+            levelManager.incrementDeathCount(for: 3)
+            debugLog("Killed by spike1! Death count: \(currentLevelDeaths)")
+            handleDeath(in: geometry)
+        }
+
+        // Spike2 collision
+        let spike2Bounds = CGRect(
+            x: spike2Position.x - spike2Size.width/2,
+            y: spike2Position.y - spike2Size.height/2,
+            width: spike2Size.width,
+            height: spike2Size.height
+        )
+        if playerRect.intersects(spike2Bounds) {
+            isDead = true
+            currentLevelDeaths += 1
+            levelManager.incrementDeathCount(for: 3)
+            debugLog("Killed by spike2! Death count: \(currentLevelDeaths)")
+            handleDeath(in: geometry)
+        }
+
+        // Spike3 collision
+        let spike3Bounds = CGRect(
+            x: spike3Position.x - spike3Size.width/2,
+            y: spike3Position.y - spike3Size.height/2,
+            width: spike3Size.width,
+            height: spike3Size.height
+        )
+        if playerRect.intersects(spike3Bounds) {
+            isDead = true
+            currentLevelDeaths += 1
+            levelManager.incrementDeathCount(for: 3)
+            debugLog("Killed by spike3! Death count: \(currentLevelDeaths)")
+            handleDeath(in: geometry)
+        }
+
+        // EOF collision
+        let eofBounds = CGRect(
+            x: eofPosition.x - eofSize.width/2,
+            y: eofPosition.y - eofSize.height/2,
+            width: eofSize.width,
+            height: eofSize.height
+        )
+        if playerRect.intersects(eofBounds) && eofOpacity > 0 {
+            isDead = true
+            currentLevelDeaths += 1
+            levelManager.incrementDeathCount(for: 3)
+            debugLog("Killed by EOF! Death count: \(currentLevelDeaths)")
+            handleDeath(in: geometry)
+        }
+
+        // Second EOF collision
+        if showSecondEof {
+            let secondEofBounds = CGRect(
+                x: secondEofPosition.x - secondEofConfig.size.width/2,
+                y: secondEofPosition.y - secondEofConfig.size.height/2,
+                width: secondEofConfig.size.width,
+                height: secondEofConfig.size.height
+            )
+            if playerRect.intersects(secondEofBounds) {
+                isDead = true
+                currentLevelDeaths += 1
+                levelManager.incrementDeathCount(for: 3)
+                debugLog("Killed by second EOF! Death count: \(currentLevelDeaths)")
+                handleDeath(in: geometry)
+            }
+        }
     }
     
     // NEW: Add helper function for button collision
@@ -753,14 +833,30 @@ struct Level3: View {
     }
     
     private func resetPosition() {
-        playerPosition = CGPoint(x: 200, y: 310)
+        // Reset player
+        playerPosition = CGPoint(x: 200, y: 300)
         playerVelocity = .zero
         isOnGround = true
         isMovingLeft = false
         isMovingRight = false
         playerState = .idle
-        // Reset touch counter whenever player resets.
         touchCount = 0
+        
+        // Reset EOF
+        eofPosition = eofStartPosition
+        eofOpacity = 1.0
+        eofPhase = .right
+        
+        // Reset second EOF
+        showSecondEof = false
+        secondEofPosition = secondEofConfig.startPosition
+        
+        // Reset button state
+        isButtonPressed = false
+        
+        // Reset spike3 to initial position
+        spike3Position = spike3Config.position
+        
     }
     
     // Update updatePlayerState to include hesitation detection
