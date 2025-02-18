@@ -69,13 +69,13 @@ struct Level1: View {
     
     // Existing coffee config
     private let coffeeConfig: [(CGFloat, CGFloat, Bool)] = [
-        (250, 550, false),  // coffee1
+        (250, 550, false),     // coffee1
         (358.33, 550, false),  // coffee2
-        (466.67, 550, false),   // coffee3 - deadly
-        (575, 550, false),  // coffee4
+        (466.67, 550, true),   // coffee3 - deadly
+        (575, 550, false),     // coffee4
         (683.33, 550, false),  // coffee5
         (791.67, 550, false),  // coffee6
-        (900, 550, false)   // coffee7 - deadly
+        (900, 550, true)       // coffee7 - deadly
     ]
     
     // Add home position constant
@@ -518,12 +518,10 @@ struct Level1: View {
                     // Collect or die based on coffee type
                     if coffee.2 {  // Deadly coffee
                         isDead = true
+                        currentLevelDeaths += 1 // Increment level death counter
+                        levelManager.incrementDeathCount(for: 1) // Increment total death count
+                        debugLog("Coffee\(index + 1) killed player! Death count: \(currentLevelDeaths)")
                         resetPlayerPosition()
-                        if index == 2 || index == 6 {  // coffee3 or coffee7
-                            timesFooled += 1
-                            debugLog("Player fooled by coffee\(index + 1)! Times fooled: \(timesFooled)")
-                        }
-                        debugLog("Coffee\(index + 1) is deadly, player died of common sense...")
                     } else {
                         coffeeStates[index] = true
                         debugLog("Collecting coffee\(index + 1)")
