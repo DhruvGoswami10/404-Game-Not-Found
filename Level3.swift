@@ -20,6 +20,8 @@ struct Level3: View {
     @State private var idleStartTime = Date()
     // Added new touch counter.
     @State private var touchCount = 0
+    @State private var hasLoggedUsingPhone = false
+    @State private var startingDeathCount = 0
     
     private let gravity: CGFloat = 0.8
     private let jumpForce: CGFloat = -15
@@ -39,32 +41,32 @@ struct Level3: View {
     // Existing platform configurations:
     private let platforms = (
         plat: (           // Bottom Platform
-            position: CGPoint(x: 650, y: 680),
-            size: CGSize(width: 1150, height: 50)
+            position: CGPoint(x: 595, y: 680),
+            size: CGSize(width: 1140, height: 50)
         ),
         wall: (
-            position: CGPoint(x: 100, y: 400),
-            size: CGSize(width: 50, height: 450)
+            position: CGPoint(x: 50, y: 420),
+            size: CGSize(width: 50, height: 490)
         ),
         roof: (
-            position: CGPoint(x: 650, y: 200),
-            size: CGSize(width: 1150, height: 50)
+            position: CGPoint(x: 600, y: 200),
+            size: CGSize(width: 1100, height: 50)
         )
     )
     // Added new 'Plat3-down':
     private let secondDown = (  // Middle Platform
-        position: CGPoint(x: 775, y: 520),
+        position: CGPoint(x: 720, y: 520),
         size: CGSize(width: 800, height: 50)
     )
     // Added new 'Plat3-wall':
     private let secondWall = (
-        position: CGPoint(x: 1200, y: 400),
-        size: CGSize(width: 50, height: 450)
+        position: CGPoint(x: 1140, y: 420),
+        size: CGSize(width: 50, height: 490)
     )
     
     // Add new platform configuration after existing platform configs
     private let platform3Extra = (      // Top Platform
-        position: CGPoint(x: 525, y: 360),         // Adjust x/y position as needed
+        position: CGPoint(x: 475, y: 360),         // Adjust x/y position as needed
         size: CGSize(width: 800, height: 50)    // Adjust width/height as needed
     )
     
@@ -74,10 +76,10 @@ struct Level3: View {
     }
     
     // Configurable eof parameters.
-    private let eofStartPosition: CGPoint = CGPoint(x: 10, y: 300)  // adjust starting position here
+    private let eofStartPosition: CGPoint = CGPoint(x: -30, y: 285)  // adjust starting position here
     private let eofSize: CGSize = CGSize(width: 120, height: 80)        // adjust size here
-    private let eofTargetX: CGFloat = 1050   // move right until this x
-    private let eofTargetY: CGFloat = 500   // then down until this y
+    private let eofTargetX: CGFloat = 970   // move right until this x
+    private let eofTargetY: CGFloat = 450   // then down until this y
     private let eofSpeedRight: CGFloat = 2  // adjust rightward speed here
     private let eofSpeedDown: CGFloat = 2   // adjust downward speed here
     private let eofSpeedLeft: CGFloat = 2   // adjust leftward speed here
@@ -89,7 +91,7 @@ struct Level3: View {
     @State private var eofPhase: EofPhase = .right
     
     // Configurable home constants
-    private var homePosition: CGPoint = CGPoint(x: 1120, y: 605) // Adjust as needed
+    private var homePosition: CGPoint = CGPoint(x: 1050, y: 605) // Adjust as needed
     private let homeSize: CGSize = CGSize(width: 100, height: 100)   // Adjust as needed
     
     // NEW: Configurable spike constants
@@ -163,7 +165,7 @@ struct Level3: View {
     // NEW: Button configuration
     private let buttonConfig = (
         size: CGSize(width: 170, height: 50),
-        position: CGPoint(x: 230, y: 650),
+        position: CGPoint(x: 200, y: 650),
         pressedOffset: CGFloat(20)  // How far button moves down when pressed
     )
     @State private var isButtonPressed = false
@@ -171,8 +173,8 @@ struct Level3: View {
     // NEW: Second EOF configuration
     private let secondEofConfig = (
         size: CGSize(width: 120, height: 80),
-        startPosition: CGPoint(x: 200, y: 650),
-        endPosition: CGPoint(x: 1100, y: 650),  // Changed end position to x: 1100
+        startPosition: CGPoint(x: 100, y: 600),
+        endPosition: CGPoint(x: 1100, y: 600),  // Changed end position to x: 1100
         speed: CGFloat(5)
     )
     @State private var showSecondEof = false
@@ -216,11 +218,25 @@ struct Level3: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
+                // Base background
                 Color.white.ignoresSafeArea()
-                    .onAppear {
-                        levelStartTime = Date()
-                    }
+                    .zIndex(0)
                 
+                // Death Notes Layer - keep behind all game elements
+                if !deathNotes.isEmpty {
+                    ForEach(deathNotes.indices, id: \.self) { index in
+                        Image(deathNotes[index].note)
+                            .resizable()
+                            .frame(width: 150, height: 150)
+                            .position(deathNotes[index].position)
+                            .rotationEffect(.degrees(deathNotes[index].rotation))
+                            .opacity(0.7)  // Reduced opacity to match Level2
+                            .shadow(color: .black.opacity(0.1), radius: 5, x: 2, y: 2)
+                            .zIndex(0.1)  // Just above background
+                            .allowsHitTesting(false)
+                    }
+                }
+
                 // NEW: Death Counter overlay
                 Text("Deaths: \(deathCount)")
                     .font(.system(size: 24, weight: .bold))
@@ -233,91 +249,104 @@ struct Level3: View {
                     .position(x: geometry.size.width / 2, y: 50)
                     .zIndex(3)
                 
-                // UPDATED: Death Notes Background Layer (same style as Level1/2)
-                ForEach(deathNotes.indices, id: \.self) { index in
-                    Image(deathNotes[index].note)
+                // Game elements with proper z-index layering
+                Group {
+                    // Red button (z: 1)
+                    Rectangle()
+                        .fill(Color.red)
+                        .frame(width: buttonConfig.size.width, height: buttonConfig.size.height)
+                        .position(x: buttonConfig.position.x, 
+                                y: buttonConfig.position.y + (isButtonPressed ? buttonConfig.pressedOffset : 0))
+                        .animation(.spring(), value: isButtonPressed)
+                        .zIndex(1)
+                    
+                    // Platforms (z: 1)
+                    Image("Plat3-down")
                         .resizable()
-                        .frame(width: 150, height: 150)
-                        .position(deathNotes[index].position)
-                        .rotationEffect(.degrees(deathNotes[index].rotation))
-                        .opacity(0.15)
-                        .blur(radius: 0.5)
-                        .shadow(color: .black.opacity(0.2), radius: 10, x: 5, y: 5)
-                        .overlay(
-                            Color.white.opacity(0.1)
-                                .blendMode(.overlay)
-                        )
-                        .zIndex(0.5)
-                        .allowsHitTesting(false)
+                        .frame(width: platforms.plat.size.width, height: platforms.plat.size.height)
+                        .position(platforms.plat.position)
+                        .zIndex(1)
+                    
+                    Image("Plat3-wall")
+                        .resizable()
+                        .frame(width: platforms.wall.size.width, height: platforms.wall.size.height)
+                        .position(platforms.wall.position)
+                        .zIndex(1)
+                    
+                    Image("Plat3-roof")
+                        .resizable()
+                        .frame(width: platforms.roof.size.width, height: platforms.roof.size.height)
+                        .position(platforms.roof.position)
+                        .zIndex(1)
+                    
+                    // Render the new Plat3-down:
+                    Image("Plat3-down")
+                        .resizable()
+                        .frame(width: secondDown.size.width, height: secondDown.size.height)
+                        .position(secondDown.position)
+                        .zIndex(1)
+                    // Render the new Plat3-wall:
+                    Image("Plat3-wall")
+                        .resizable()
+                        .frame(width: secondWall.size.width, height: secondWall.size.height)
+                        .position(secondWall.position)
+                        .zIndex(1)
+                    
+                    // Add new platform3 after existing platforms
+                    Image("Plat3-down")
+                        .resizable()
+                        .frame(width: platform3Extra.size.width, height: platform3Extra.size.height)
+                        .position(platform3Extra.position)
+                        .zIndex(1)
+                    
+                    // Spikes (z: 2)
+                    Image("spike")
+                        .resizable()
+                        .frame(width: spikeSize.width, height: spikeSize.height)
+                        .position(spikePosition)
+                        .zIndex(2)
+                    
+                    Image("spike2")
+                        .resizable()
+                        .frame(width: spike2Size.width, height: spike2Size.height)
+                        .position(spike2Position)
+                        .zIndex(2)
+                    
+                    // NEW: Additional spike (spike3)
+                    Image("spike")
+                        .resizable()
+                        .frame(width: spike3Size.width, height: spike3Size.height)
+                        .position(spike3Position)
+                        .zIndex(2)
+                    
+                    // EOFs (z: 2)
+                    Image("eof")
+                        .resizable()
+                        .frame(width: eofSize.width, height: eofSize.height)
+                        .position(eofPosition)
+                        .opacity(eofOpacity)
+                        .zIndex(2)
+                    
+                    if showSecondEof {
+                        Image("eof")
+                            .resizable()
+                            .frame(width: secondEofConfig.size.width, height: secondEofConfig.size.height)
+                            .position(secondEofPosition)
+                            .zIndex(2)
+                    }
+                    
+                    // NEW: Home Asset (adjustable size and position)
+                    Image("Home")
+                        .resizable()
+                        .frame(width: homeSize.width, height: homeSize.height)
+                        .position(homePosition)
+                        .zIndex(2)
                 }
-                
-                // ...existing background/platform visuals...
-                // NEW: Red button should be rendered before platforms
-                Rectangle()
-                    .fill(Color.red)
-                    .frame(width: buttonConfig.size.width, height: buttonConfig.size.height)
-                    .position(x: buttonConfig.position.x, 
-                             y: buttonConfig.position.y + (isButtonPressed ? buttonConfig.pressedOffset : 0))
-                    .animation(.spring(), value: isButtonPressed)
-                
-                Image("Plat3-down")
-                    .resizable()
-                    .frame(width: platforms.plat.size.width, height: platforms.plat.size.height)
-                    .position(platforms.plat.position)
-                Image("Plat3-wall")
-                    .resizable()
-                    .frame(width: platforms.wall.size.width, height: platforms.wall.size.height)
-                    .position(platforms.wall.position)
-                Image("Plat3-roof")
-                    .resizable()
-                    .frame(width: platforms.roof.size.width, height: platforms.roof.size.height)
-                    .position(platforms.roof.position)
-                
-                // Render the new Plat3-down:
-                Image("Plat3-down")
-                    .resizable()
-                    .frame(width: secondDown.size.width, height: secondDown.size.height)
-                    .position(secondDown.position)
-                // Render the new Plat3-wall:
-                Image("Plat3-wall")
-                    .resizable()
-                    .frame(width: secondWall.size.width, height: secondWall.size.height)
-                    .position(secondWall.position)
-                
-                // Add new platform3 after existing platforms
-                Image("Plat3-down")
-                    .resizable()
-                    .frame(width: platform3Extra.size.width, height: platform3Extra.size.height)
-                    .position(platform3Extra.position)
-                
-                // NEW: Home Asset (adjustable size and position)
-                Image("Home")
-                    .resizable()
-                    .frame(width: homeSize.width, height: homeSize.height)
-                    .position(homePosition)
-                    .zIndex(1)
-                
-                // NEW: Spike assets (adjustable size and position)
-                Image("spike")
-                    .resizable()
-                    .frame(width: spikeSize.width, height: spikeSize.height)
-                    .position(spikePosition)
-                    .zIndex(1)
-                Image("spike2")
-                    .resizable()
-                    .frame(width: spike2Size.width, height: spike2Size.height)
-                    .position(spike2Position)
-                    .zIndex(1)
-                // NEW: Additional spike (spike3)
-                Image("spike")
-                    .resizable()
-                    .frame(width: spike3Size.width, height: spike3Size.height)
-                    .position(spike3Position)
-                    .zIndex(1)
-                
+
                 // Re-added Player view with physics updates and new onTapGesture.
                 Player(currentState: playerState, facingRight: playerFacingRight, walkFrame: walkFrame)
                     .position(playerPosition)
+                    .zIndex(3)
                     .onTapGesture {
                         touchCount += 1
                         if touchCount >= 3 {
@@ -339,21 +368,6 @@ struct Level3: View {
                         updateEOF()  // update eof movement each frame
                         updateSpike3() // NEW: update spike3 movement
                     }
-                
-                // Render eof asset.
-                Image("eof")
-                    .resizable()
-                    .frame(width: eofSize.width, height: eofSize.height)
-                    .position(eofPosition)
-                    .opacity(eofOpacity)
-                
-                // NEW: Add second EOF after first EOF
-                if showSecondEof {
-                    Image("eof")
-                        .resizable()
-                        .frame(width: secondEofConfig.size.width, height: secondEofConfig.size.height)
-                        .position(secondEofPosition)
-                }
                 
                 // Back to map button remains.
                 Button("Back to Map") {
@@ -386,14 +400,14 @@ struct Level3: View {
                         opacity: 0.8
                     ),
                     onLeftBegan: {
-                        if !isLevelComplete {
+                        if (!isLevelComplete) {
                             isMovingLeft = true
                             playerState = .walking
                             playerFacingRight = false
                         }
                     },
                     onLeftEnded: {
-                        if !isLevelComplete {
+                        if (!isLevelComplete) {
                             isMovingLeft = false
                             if (!isMovingRight) {
                                 playerState = .idle
@@ -402,14 +416,14 @@ struct Level3: View {
                         }
                     },
                     onRightBegan: {
-                        if !isLevelComplete {
+                        if (!isLevelComplete) {
                             isMovingRight = true
                             playerState = .walking
                             playerFacingRight = true
                         }
                     },
                     onRightEnded: {
-                        if !isLevelComplete {
+                        if (!isLevelComplete) {
                             isMovingRight = false
                             if (!isMovingLeft) {
                                 playerState = .idle
@@ -418,7 +432,7 @@ struct Level3: View {
                         }
                     },
                     onJumpBegan: {
-                        if !isLevelComplete, isOnGround {
+                        if (!isLevelComplete && isOnGround) {
                             playerVelocity.y = jumpForce
                             isOnGround = false
                             playerState = .jumping
@@ -443,7 +457,7 @@ struct Level3: View {
                         .onAppear {
                             levelManager.incrementDeathCount(for: 3)  // Increment death count for level 3
                             addDeathNote(in: geometry)  // Add a death note
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { // Reduced from 2.0 to 1.0 seconds
                                 isDead = false
                             }
                         }
@@ -554,6 +568,13 @@ struct Level3: View {
                     .position(spike3Position)
                     .zIndex(0.5)
             }
+        }
+        .onAppear {
+            // Reset death count and start time
+            startingDeathCount = levelManager.getTotalDeathCount()
+            levelStartTime = Date()
+            currentLevelDeaths = 0  // Reset level-specific death counter
+            debugLog("Level 3 started - Initial death count: \(startingDeathCount)")
         }
     }
     
@@ -842,21 +863,18 @@ struct Level3: View {
         playerState = .idle
         touchCount = 0
         
-        // Reset EOF
-        eofPosition = eofStartPosition
+        // Reset EOF to starting position
+        eofPosition = eofStartPosition  // Reset EOF x to -30
         eofOpacity = 1.0
         eofPhase = .right
         
-        // Reset second EOF
+        // Reset other states
         showSecondEof = false
         secondEofPosition = secondEofConfig.startPosition
-        
-        // Reset button state
         isButtonPressed = false
-        
-        // Reset spike3 to initial position
         spike3Position = spike3Config.position
-        
+        idleStartTime = Date()
+        hasLoggedUsingPhone = false
     }
     
     // Update updatePlayerState to include hesitation detection
@@ -977,8 +995,11 @@ struct Level3: View {
     private func addDeathNote(in geometry: GeometryProxy) {
         let notes = ["note1", "note2", "note3", "note4", "note5"]
         let noteIndex = deathCount % notes.count
-        let randomX = CGFloat.random(in: 0...geometry.size.width)
-        let randomY = CGFloat.random(in: 0...geometry.size.height)
+        
+        // Keep notes within visible area with padding
+        let padding: CGFloat = 100
+        let randomX = CGFloat.random(in: padding...(geometry.size.width - padding))
+        let randomY = CGFloat.random(in: padding...(geometry.size.height - padding))
         let rotation = Double.random(in: -30...30)
         
         levelManager.addDeathNote(
