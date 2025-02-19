@@ -165,10 +165,14 @@ struct Level2: View {
     
     // Define installer sequence
     private let installerSequence = [
-        (text: "INSTALLING LEVEL3.swift...\nEstimated Time: 10 seconds", progress: 0.67, delay: 2.0),
-        (text: "ERROR: Install Failed.\nRetrying...", progress: 0.42, delay: 1.5),
-        (text: "", progress: 0.73, delay: 0.5),
-        (text: "", progress: 0.0, delay: 1.0)
+        (text: "INSTALLING LEVEL3.swift...\nEstimated Time: 10 seconds", progress: 0.25, delay: 1.5),
+        (text: "Copying files...", progress: 0.45, delay: 1.0),
+        (text: "Validating installation...", progress: 0.67, delay: 1.0),
+        (text: "ERROR: Validation Failed.\nRetrying installation...", progress: 0.42, delay: 1.5),
+        (text: "CRITICAL ERROR: File corrupted\nAttempting recovery...", progress: 0.15, delay: 1.0),
+        (text: "Recovery failed...\nForcing installation...", progress: 0.89, delay: 1.0),
+        (text: "", progress: 0.95, delay: 0.5),
+        (text: "", progress: 0.0, delay: 0.5)
     ]
 
     // Update installer states
@@ -178,6 +182,12 @@ struct Level2: View {
     private let maxFlashes = 3
     private let flashDuration = 0.3
     private let flashInterval = 0.5
+
+    // Add new state variables after existing ones
+    @State private var idleStartTime = Date()
+    @State private var canTouch = true
+    @State private var hasLoggedUsingPhone = false
+    @State private var touchCount = 0
 
     init() {
         // Initialize spinner position at left boundary
@@ -196,93 +206,114 @@ struct Level2: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Background
+                // Base background
                 Color.white.ignoresSafeArea()
+                    .zIndex(0)
                 
-                // Death Notes Background Layer
-                ForEach(deathNotes.indices, id: \.self) { index in
-                    Image(deathNotes[index].note)
+                // Death Notes Layer - keep behind all game elements
+                if !deathNotes.isEmpty {
+                    ForEach(deathNotes.indices, id: \.self) { index in
+                        Image(deathNotes[index].note)
+                            .resizable()
+                            .frame(width: 150, height: 150)
+                            .position(deathNotes[index].position)
+                            .rotationEffect(.degrees(deathNotes[index].rotation))
+                            .opacity(0.7)  // Keep very subtle
+                            .shadow(color: .black.opacity(0.1), radius: 5, x: 2, y: 2)
+                            .zIndex(0.1)  // Just above background
+                            .allowsHitTesting(false)
+                    }
+                }
+
+                // Game elements with higher z-index values
+                Group {
+                    // Platforms
+                    Image("return")
                         .resizable()
-                        .frame(width: 150, height: 150)
-                        .position(deathNotes[index].position)
-                        .rotationEffect(.degrees(deathNotes[index].rotation))
-                        .opacity(0.15)
-                        .blur(radius: 0.5)
-                        .shadow(color: .black.opacity(0.2), radius: 10, x: 5, y: 5)
-                        .overlay(
-                            Color.white.opacity(0.1)
-                                .blendMode(.overlay)
-                        )
-                        .zIndex(0.5)
-                        .allowsHitTesting(false)
+                        .frame(width: returnPlatform.size.width, height: returnPlatform.size.height)
+                        .position(returnPlatform.position)
+                        .zIndex(1)
+                    
+                    Image("platform2")
+                        .resizable()
+                        .frame(width: platform2Config.size.width, height: platform2Config.size.height)
+                        .position(platform2Config.position)
+                        .zIndex(1)
+                    
+                    Image("platform2")
+                        .resizable()
+                        .frame(width: platform2Extra.size.width, height: platform2Extra.size.height)
+                        .position(platform2Extra.position)
+                        .zIndex(1)
+                    
+                    Image("Plat3-roof")
+                        .resizable()
+                        .frame(width: roofConfig.size.width, height: roofConfig.size.height)
+                        .position(roofConfig.position)
+                        .zIndex(1)
+                    
+                    Image("Plat3-roof")
+                        .resizable()
+                        .frame(width: roofConfig2.size.width, height: roofConfig2.size.height)
+                        .position(roofConfig2.position)
+                        .zIndex(1)
+                    
+                    // Spinners
+                    Image("spinner")
+                        .resizable()
+                        .frame(width: spinnerConfig.size.width, height: spinnerConfig.size.height)
+                        .rotationEffect(.degrees(spinnerRotation))
+                        .position(spinnerPosition)
+                        .zIndex(2)
+                    
+                    Image("spinner")
+                        .resizable()
+                        .frame(width: spinner2Config.size.width, height: spinner2Config.size.height)
+                        .rotationEffect(.degrees(spinner2Rotation))
+                        .position(spinner2Position)
+                        .zIndex(2)
+                    
+                    // Home and Player
+                    Image("Home")
+                        .resizable()
+                        .frame(width: 95, height: 80)
+                        .position(homePosition)
+                        .zIndex(2)
                 }
-                
-                // NEW: Render remaining platform
-                Image("return")
-                    .resizable()
-                    .frame(width: returnPlatform.size.width, height: returnPlatform.size.height)
-                    .position(returnPlatform.position)
-                
-                // NEW: Re-add platform2 view
-                Image("platform2")
-                    .resizable()
-                    .frame(width: platform2Config.size.width, height: platform2Config.size.height)
-                    .position(platform2Config.position)
-                
-                // NEW: Render extra platform2.
-                Image("platform2")
-                    .resizable()
-                    .frame(width: platform2Extra.size.width, height: platform2Extra.size.height)
-                    .position(platform2Extra.position)
-                
-                // Keep first two roof platforms
-                Image("Plat3-roof")
-                    .resizable()
-                    .frame(width: roofConfig.size.width, height: roofConfig.size.height)
-                    .position(roofConfig.position)
-                
-                Image("Plat3-roof")
-                    .resizable()
-                    .frame(width: roofConfig2.size.width, height: roofConfig2.size.height)
-                    .position(roofConfig2.position)
-                
-                // Update spinner view to include rotation
-                Image("spinner")
-                    .resizable()
-                    .frame(width: spinnerConfig.size.width, 
-                           height: spinnerConfig.size.height)
-                    .rotationEffect(.degrees(spinnerRotation))
-                    .position(spinnerPosition)
-                
-                // Add second spinner view after first spinner
-                Image("spinner")
-                    .resizable()
-                    .frame(width: spinner2Config.size.width, 
-                           height: spinner2Config.size.height)
-                    .rotationEffect(.degrees(spinner2Rotation))
-                    .position(spinner2Position)
-                
-                // Home
-                Image("Home")
-                    .resizable()
-                    .frame(width: 95, height: 80)
-                    .position(homePosition)
-                
-                // Back button (add this)
-                Button("Back to Map") {
-                    levelManager.currentState = .progressMap
-                }
-                .padding()
-                .background(Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(10)
-                .position(x: 100, y: 50)
-                .zIndex(3)
-                
-                // NEW: Re-added Player view with its mechanics
+
+                // Player should be above all game elements
                 Player(currentState: playerState, facingRight: playerFacingRight, walkFrame: walkFrame)
                     .rotationEffect(.degrees(playerRotation))
                     .position(playerPosition)
+                    .zIndex(3)
+                    .onTapGesture {
+                        guard !isDead && !isLevelComplete && canTouch else { return }
+                        
+                        touchCount += 1
+                        canTouch = false // Prevent rapid touches
+                        
+                        if touchCount >= 3 {
+                            // Player dies after 3 touches
+                            isDead = true
+                            touchCount = 0 // Reset counter
+                            handleDeath(in: geometry)
+                        } else {
+                            // Show hey animation
+                            playerState = .hey
+                            
+                            // Return to previous state after animation
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                                if !isMovingLeft && !isMovingRight && isOnGround {
+                                    playerState = .idle
+                                } else if isOnGround {
+                                    playerState = .walking
+                                } else {
+                                    playerState = .jumping
+                                }
+                                canTouch = true // Re-enable touch after animation
+                            }
+                        }
+                    }
                     .onReceive(physicsTimer) { _ in
                         if !isLevelComplete {
                             updatePhysics(in: geometry)
@@ -438,6 +469,19 @@ struct Level2: View {
                     }
                 }
                 
+                // Add Back to Map button
+                Button("Back to Map") {
+                    withAnimation {
+                        levelManager.currentState = .progressMap
+                    }
+                }
+                .padding()
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(10)
+                .position(x: 100, y: 50)
+                .zIndex(3)
+                
                 // Add death overlay with single increment
                 if isDead {
                     Color.black.opacity(0.8)
@@ -567,6 +611,13 @@ struct Level2: View {
                     }
                 }
             }
+        }
+        .onAppear {
+            // Store initial death count to calculate new deaths in this level
+            startingDeathCount = levelManager.getTotalDeathCount()
+            levelStartTime = Date()
+            currentLevelDeaths = 0  // Reset level-specific death counter
+            debugLog("Level 2 started - Initial death count: \(startingDeathCount)")
         }
     }
     
@@ -808,6 +859,10 @@ struct Level2: View {
         isGravityReversed = false  // Ensure gravity is normal
         playerRotation = 0  // Ensure rotation is normal
         canDie = true // Re-enable death when player respawns
+        idleStartTime = Date()
+        hasLoggedUsingPhone = false
+        canTouch = true
+        touchCount = 0
     }
     
     private func handleDeath(in geometry: GeometryProxy) {
@@ -825,8 +880,10 @@ struct Level2: View {
         let notes = ["note1", "note2", "note3", "note4", "note5"]
         let noteIndex = deathCount % notes.count
         
-        let randomX = CGFloat.random(in: 0...geometry.size.width)
-        let randomY = CGFloat.random(in: 0...geometry.size.height)
+        // Keep notes within visible area with padding
+        let padding: CGFloat = 100
+        let randomX = CGFloat.random(in: padding...(geometry.size.width - padding))
+        let randomY = CGFloat.random(in: padding...(geometry.size.height - padding))
         let rotation = Double.random(in: -30...30)
         
         levelManager.addDeathNote(
@@ -884,9 +941,18 @@ struct Level2: View {
                 playerFacingRight = isMovingRight
             }
         } else {
-            playerState = .idle
-            if isGravityReversed {
-                playerFacingRight = false  // Face left when idle on roof
+            let idleTime = Date().timeIntervalSince(idleStartTime)
+            if idleTime > 3 && playerState != .hey {
+                if playerState != .usingPhone {
+                    playerState = .usingPhone
+                    if !hasLoggedUsingPhone {
+                        print("Using Phone") // Optional debug log
+                        hasLoggedUsingPhone = true
+                    }
+                }
+            } else if playerState != .hey {
+                playerState = .idle
+                hasLoggedUsingPhone = false
             }
         }
     }
@@ -1006,14 +1072,22 @@ struct Level2: View {
         showInstaller = true
         showInstallerOverlay = true
         
-        // Run through installer sequence
         var totalDelay: Double = 0
+        
+        // Run through installer sequence with glitch effects
         for (index, sequence) in installerSequence.enumerated() {
             DispatchQueue.main.asyncAfter(deadline: .now() + totalDelay) {
-                withAnimation(.easeInOut(duration: 0.5)) {
+                withAnimation(.easeInOut(duration: 0.3)) {
                     installerText = sequence.text
                     progressValue = sequence.progress
-                    isGlitching = index >= 2  // Start glitching at retry attempts
+                    
+                    // Add glitch effects after error messages
+                    if index >= 3 {
+                        isGlitching = true
+                        // Add screen shake effect
+                        let impact = UIImpactFeedbackGenerator(style: .medium)
+                        impact.impactOccurred()
+                    }
                 }
             }
             totalDelay += sequence.delay
@@ -1021,8 +1095,9 @@ struct Level2: View {
         
         // Show ghost text and start red flashing
         DispatchQueue.main.asyncAfter(deadline: .now() + totalDelay) {
-            withAnimation(.easeIn(duration: 0.3)) {
+            withAnimation(.easeIn(duration: 0.5)) {
                 showGhostText = true
+                isGlitching = true
             }
             startRedFlashing()
         }
@@ -1031,22 +1106,37 @@ struct Level2: View {
     // Add new function for red flashing effect
     private func startRedFlashing() {
         guard flashCount < maxFlashes else {
-            // Transition to next level after flashing completes
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                withAnimation {
+                withAnimation(.easeInOut(duration: 0.3)) {
                     showGhostText = false
-                    levelManager.currentState = .level(3)
+                    redFlashOpacity = 0
+                    
+                    // Add final screen shake
+                    let impact = UIImpactFeedbackGenerator(style: .heavy)
+                    impact.impactOccurred()
+                    
+                    // Transition to next level
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        withAnimation {
+                            levelManager.currentState = .level(3)
+                        }
+                    }
                 }
             }
             return
         }
         
-        // Fade in red
+        // Intensify flash effect with each iteration
+        let flashIntensity = Double(flashCount + 1) * 0.2
+        
         withAnimation(.easeIn(duration: flashDuration)) {
-            redFlashOpacity = 0.3 // Subtle red flash
+            redFlashOpacity = flashIntensity
+            
+            // Add haptic feedback for each flash
+            let impact = UIImpactFeedbackGenerator(style: .rigid)
+            impact.impactOccurred()
         }
         
-        // Fade out red and schedule next flash
         DispatchQueue.main.asyncAfter(deadline: .now() + flashDuration) {
             withAnimation(.easeOut(duration: flashDuration)) {
                 redFlashOpacity = 0
