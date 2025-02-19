@@ -147,6 +147,12 @@ struct Level1: View {
         "- Player Adaptation: 0% (Good luck.)\n"
     ]
 
+    // Add new state variables for transition
+    @State private var showTransition = false
+    @State private var transitionProgress: CGFloat = 0
+    @State private var transitionText = "Loading Level 2..."
+    @State private var showLoadingBar = false
+
     var body: some View {
         GeometryReader { geometry in
             ZStack {
@@ -190,23 +196,18 @@ struct Level1: View {
                     .position(terminalConfig.position)
                     .zIndex(0.1)
                 
-                // Death Notes Background Layer (z-index: 0.5)
+                // Death Notes Layer with further reduced opacity
                 if !deathNotes.isEmpty {
                     ForEach(deathNotes.indices, id: \.self) { index in
-                        if index < deathNotes.count {  // Add bounds check
+                        if index < deathNotes.count {
                             Image(deathNotes[index].note)
                                 .resizable()
                                 .frame(width: 150, height: 150)
                                 .position(deathNotes[index].position)
                                 .rotationEffect(.degrees(deathNotes[index].rotation))
-                                .opacity(0.15)  // More transparent
-                                .blur(radius: 0.5)  // Slight blur effect
-                                .shadow(color: .black.opacity(0.2), radius: 10, x: 5, y: 5)
-                                .overlay(
-                                    Color.white.opacity(0.1)  // Subtle white overlay
-                                        .blendMode(.overlay)
-                                )
-                                .zIndex(0.5)
+                                .opacity(0.7)  // Reduced opacity from 0.08 to 0.05
+                                .shadow(color: .black.opacity(0.1), radius: 5, x: 2, y: 2) // Reduced shadow opacity
+                                .zIndex(0.1)
                                 .allowsHitTesting(false)
                         }
                     }
@@ -468,6 +469,42 @@ struct Level1: View {
                         .transition(.opacity)
                         .zIndex(5)
                     }
+                }
+
+                // Update level complete overlay in body
+                if isLevelComplete {
+                    // Dark overlay
+                    Color.black
+                        .opacity(showTransition ? 0.9 : 0)
+                        .ignoresSafeArea()
+                        .zIndex(10)
+                    
+                    VStack(spacing: 20) {
+                        Text(transitionText)
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundColor(.white)
+                            .opacity(showTransition ? 1 : 0)
+                        
+                        if showLoadingBar {
+                            // Loading bar
+                            GeometryReader { metrics in
+                                ZStack(alignment: .leading) {
+                                    // Background bar
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.gray.opacity(0.3))
+                                        .frame(height: 8)
+                                    
+                                    // Progress bar
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.green)
+                                        .frame(width: metrics.size.width * transitionProgress, height: 8)
+                                }
+                            }
+                            .frame(width: 200)
+                            .padding(.top, 10)
+                        }
+                    }
+                    .zIndex(11)
                 }
             }
             .onAppear {
@@ -732,12 +769,14 @@ struct Level1: View {
         let notes = ["note1", "note2", "note3", "note4", "note5"]
         let noteIndex = max(0, min(deathCount - 1, notes.count - 1)) % notes.count
         
-        let randomX = CGFloat.random(in: 0...geometry.size.width)
-        let randomY = CGFloat.random(in: 0...geometry.size.height)
+        // Keep notes within visible area with some padding
+        let padding: CGFloat = 100
+        let randomX = CGFloat.random(in: padding...(geometry.size.width - padding))
+        let randomY = CGFloat.random(in: padding...(geometry.size.height - padding))
         let rotation = Double.random(in: -30...30)
         
         levelManager.addDeathNote(
-            for: 1,  // Use 2 for Level2
+            for: 1,
             note: notes[noteIndex],
             position: CGPoint(x: randomX, y: randomY),
             rotation: rotation
@@ -800,6 +839,34 @@ struct Level1: View {
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
             withAnimation {
+                levelManager.currentState = .level(2)
+            }
+        }
+    }
+
+    private func handleLevelComplete() {
+        isLevelComplete = true
+        
+        // Start transition sequence
+        withAnimation(.easeInOut(duration: 0.5)) {
+            showTransition = true
+        }
+        
+        // Show loading bar after delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            withAnimation(.easeIn(duration: 0.3)) {
+                showLoadingBar = true
+            }
+            
+            // Animate progress bar
+            withAnimation(.easeInOut(duration: 2.0)) {
+                transitionProgress = 1.0
+            }
+        }
+        
+        // Switch to Level 2 after animation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            withAnimation(.easeOut(duration: 0.5)) {
                 levelManager.currentState = .level(2)
             }
         }
