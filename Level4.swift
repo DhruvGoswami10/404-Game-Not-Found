@@ -11,8 +11,6 @@ struct Level4: View {
     @EnvironmentObject private var levelManager: LevelManager  // NEW: Added environment object for levelManager
     
     // NEW: Computed death counter and deathNotes for level 4
-    @State private var deathCount: Int = 0
-
     private var deathNotes: [(note: String, position: CGPoint, rotation: Double)] {
         levelManager.getDeathNotes(for: 4)
     }
@@ -155,6 +153,14 @@ struct Level4: View {
     // Add new state variable to track if obstacles should be visible
     @State private var showObstacles = true
 
+    // Add state for tracking starting death count
+    @State private var startingDeathCount: Int = 0
+
+    // Update deathCount computed property to include all deaths from previous levels
+    private var deathCount: Int {
+        levelManager.getTotalDeathCount()  // Get total deaths across all levels
+    }
+
     init() {
         _rejected1Position = State(initialValue: rejected1Start)
         _rejected2Position = State(initialValue: rejected2Start)
@@ -164,29 +170,48 @@ struct Level4: View {
         _binPosition = State(initialValue: CGPoint(x: homePosition.x, y: platform4Bottom))
     }
     
+    // Add function to import Level 3 death notes
+    private func importLevel3Notes() {
+        let level3Notes = levelManager.getDeathNotes(for: 3)
+        for note in level3Notes {
+            levelManager.addDeathNote(
+                for: 4,
+                note: note.note,
+                position: note.position,
+                rotation: note.rotation
+            )
+        }
+        debugLog("Imported \(level3Notes.count) death notes from Level 3")
+    }
+    
     var body: some View {
         GeometryReader { geometry in
             ZStack {
+                // Base background
                 Color.white.ignoresSafeArea()
-                // NEW: Death Notes Background Layer
+                    .zIndex(0)
+                
+                // Death Notes Layer - always show without condition
                 ForEach(deathNotes.indices, id: \.self) { index in
                     Image(deathNotes[index].note)
                         .resizable()
                         .frame(width: 150, height: 150)
                         .position(deathNotes[index].position)
                         .rotationEffect(.degrees(deathNotes[index].rotation))
-                        .opacity(0.15)
-                        .blur(radius: 0.5)
-                        .shadow(color: .black.opacity(0.2), radius: 10, x: 5, y: 5)
-                        .overlay(
-                            Color.white.opacity(0.1)
-                                .blendMode(.overlay)
-                        )
-                        .zIndex(0.5)
+                        .opacity(0.7)  // Fixed opacity
+                        .shadow(color: .black.opacity(0.1), radius: 5, x: 2, y: 2)
+                        .zIndex(0.1)  // Keep consistently behind all game elements
                         .allowsHitTesting(false)
                 }
                 
-                // NEW: Death Counter overlay
+                // Platform (z-index: 1)
+                Image("platform4")
+                    .resizable()
+                    .frame(width: platform4Size.width, height: platform4Size.height)
+                    .position(platform4Position)
+                    .zIndex(1)
+                
+                // Death Counter overlay
                 Text("Deaths: \(deathCount)")
                     .font(.system(size: 24, weight: .bold))
                     .foregroundColor(.red)
@@ -225,14 +250,17 @@ struct Level4: View {
                             .resizable()
                             .frame(width: coffee1Size.width, height: coffee1Size.height)
                             .position(coffee1Position)
+                            .zIndex(3)
                         Image("coffee")
                             .resizable()
                             .frame(width: coffee2Size.width, height: coffee2Size.height)
                             .position(coffee2Position)
+                            .zIndex(3)
                         Image("coffee")
                             .resizable()
                             .frame(width: coffee3Size.width, height: coffee3Size.height)
                             .position(coffee3Position)
+                            .zIndex(3)
                         
                         // Rejected assets
                         Image("rejected")
@@ -240,16 +268,19 @@ struct Level4: View {
                             .frame(width: rejected1Size.width, height: rejected1Size.height)
                             .rotationEffect(rejected1Rotation)
                             .position(rejected1Position)
+                            .zIndex(2)
                         Image("rejected")
                             .resizable()
                             .frame(width: rejected2Size.width, height: rejected2Size.height)
                             .rotationEffect(rejected2Rotation)
                             .position(rejected2Position)
+                            .zIndex(2)
                         Image("rejected")
                             .resizable()
                             .frame(width: rejected3Size.width, height: rejected3Size.height)
                             .rotationEffect(rejected3Rotation)
                             .position(rejected3Position)
+                            .zIndex(2)
                     }
                 }
                 
@@ -277,6 +308,7 @@ struct Level4: View {
                 // UPDATED: Pass walkFrame to Player view
                 Player(currentState: playerState, facingRight: playerFacingRight, walkFrame: walkFrame)
                     .position(playerPosition)
+                    .zIndex(4)
                     .onReceive(physicsTimer) { _ in
                         updatePhysics(in: geometry)
                         updatePlayerState()
@@ -595,7 +627,40 @@ struct Level4: View {
             }
         }
         .onAppear {
+            // Store initial death count to calculate new deaths in this level
+            startingDeathCount = levelManager.getTotalDeathCount()
             levelStartTime = Date()
+            currentLevelDeaths = 0  // Reset level-specific death counter
+            debugLog("Level 4 started - Initial death count: \(startingDeathCount)")
+            
+            // Import death notes from Level 3 with a staggered effect
+            let level3Notes = levelManager.getDeathNotes(for: 3)
+            
+            // Import each note with a slight delay and random position adjustment
+            for (index, note) in level3Notes.enumerated() {
+                // Add some randomness to the position to avoid exact overlap
+                let randomOffset = CGPoint(
+                    x: CGFloat.random(in: -50...50),
+                    y: CGFloat.random(in: -50...50)
+                )
+                let newPosition = CGPoint(
+                    x: note.position.x + randomOffset.x,
+                    y: note.position.y + randomOffset.y
+                )
+                
+                // Stagger the import of notes
+                DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.1) {
+                    levelManager.addDeathNote(
+                        for: 4,
+                        note: note.note,
+                        position: newPosition,
+                        rotation: note.rotation + Double.random(in: -15...15)  // Add slight rotation variation
+                    )
+                }
+            }
+            
+            debugLog("Imported \(level3Notes.count) death notes from Level 3")
+            debugLog("Starting Level 4 with \(startingDeathCount) total deaths")
         }
     }
     
@@ -640,7 +705,7 @@ struct Level4: View {
         if playerFrame.intersects(coffee1Frame) && !swappedControls {
             swappedControls = true
             showSwappedMessage = true
-            if !hasBeenFooledBy.contains("coffee1") {
+            if (!hasBeenFooledBy.contains("coffee1")) {
                 timesFooled += 1
                 hasBeenFooledBy.insert("coffee1")
                 debugLog("Fooled by coffee1: Controls swapped!")
@@ -686,14 +751,6 @@ struct Level4: View {
                 height: coffee3Size.height
             )
             if playerFrame.intersects(coffee3Frame) {
-                if isDead { return }
-                isDead = true
-                // Increment both local death count and level manager death count
-                deathCount += 1
-                levelManager.incrementDeathCount(for: 4)
-                currentLevelDeaths += 1
-                debugLog("Killed by coffee3! Death count: \(deathCount)")
-                resetPlayer()
                 handleDeath(in: geometry)
                 return
             }
@@ -706,13 +763,6 @@ struct Level4: View {
                 height: rejected1Size.width
             )
             if playerFrame.intersects(rejected1Frame) {
-                if isDead { return }
-                isDead = true
-                deathCount += 1
-                levelManager.incrementDeathCount(for: 4)
-                currentLevelDeaths += 1
-                debugLog("Killed by rejected1! Death count: \(deathCount)")
-                resetPlayer()
                 handleDeath(in: geometry)
                 return
             }
@@ -725,13 +775,6 @@ struct Level4: View {
                 height: rejected2Size.width
             )
             if playerFrame.intersects(rejected2Frame) {
-                if isDead { return }
-                isDead = true
-                deathCount += 1
-                levelManager.incrementDeathCount(for: 4)
-                currentLevelDeaths += 1
-                debugLog("Killed by rejected2! Death count: \(deathCount)")
-                resetPlayer()
                 handleDeath(in: geometry)
                 return
             }
@@ -744,7 +787,7 @@ struct Level4: View {
                 height: rejected3Size.height
             )
             if playerFrame.intersects(rejected3Frame) {
-                if !hasBeenFooledBy.contains("rejected3") {
+                if (!hasBeenFooledBy.contains("rejected3")) {
                     timesFooled += 1
                     hasBeenFooledBy.insert("rejected3")
                     debugLog("Fooled by rejected3!")
@@ -905,30 +948,41 @@ struct Level4: View {
     private func addDeathNote(in geometry: GeometryProxy) {
         let notes = ["note1", "note2", "note3", "note4", "note5"]
         let noteIndex = deathCount % notes.count
-        let randomX = CGFloat.random(in: 0...geometry.size.width)
-        let randomY = CGFloat.random(in: 0...geometry.size.height)
+        
+        // Keep notes within visible area with padding
+        let padding: CGFloat = 100
+        let randomX = CGFloat.random(in: padding...(geometry.size.width - padding))
+        let randomY = CGFloat.random(in: padding...(geometry.size.height - padding))
         let rotation = Double.random(in: -30...30)
         
+        // Add note immediately without any conditions
         levelManager.addDeathNote(
             for: 4,
             note: notes[noteIndex],
             position: CGPoint(x: randomX, y: randomY),
             rotation: rotation
         )
+        debugLog("Added death note at position: (\(randomX), \(randomY))")
     }
 
-    // Update the handleDeath function to manage the death overlay timing
+    // Update the handleDeath function to manage the death overlay timing and ensure death note appears
     private func handleDeath(in geometry: GeometryProxy) {
         if isDead { return }
-        isDead = true
-
-        levelManager.incrementDeathCount(for: 4)  // Increment count in LevelManager
-        deathCount = levelManager.getDeathCount(for: 4)
-
-        addDeathNote(in: geometry)
-        resetPlayer()  // Reset player position immediately
         
-        // No need to set timer here as it's handled in the overlay
+        // First increment death count and add death note
+        levelManager.incrementDeathCount(for: 4)
+        currentLevelDeaths += 1
+        addDeathNote(in: geometry)  // Add death note before showing overlay
+        resetPlayer()
+        
+        // Then show death overlay
+        isDead = true
+        debugLog("Death in Level 4 - Total deaths across all levels: \(deathCount)")
+        
+        // Clear death state after delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            isDead = false
+        }
     }
 
     private func checkHomeCollision() {
@@ -996,4 +1050,3 @@ struct Level4: View {
         }
     }
 }
-
