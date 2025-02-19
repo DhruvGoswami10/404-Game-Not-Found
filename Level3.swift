@@ -144,22 +144,17 @@ struct Level3: View {
     
     // Modify terminalSequence to use empty initial command
     private let terminalSequence = [
-        TerminalLine(text: "", color: .white, isProgress: false, delay: 0.5),  // Empty initial command
-        TerminalLine(text: "Collecting Level4.swift...", color: .white, isProgress: false, delay: 1.0),
-        TerminalLine(text: "Downloading Level4.swift-1.0.0-py3-none-any.whl (404.0MB)", color: .white, isProgress: false, delay: 0.8),
-        TerminalLine(text: "", color: .blue, isProgress: true, delay: 3.0), // Progress bar
-        TerminalLine(text: "\nERROR: Could not find a version that satisfies the requirement Level4.swift", color: .red, isProgress: false, delay: 0.5),
-        TerminalLine(text: "ERROR: No matching distribution found for Level4.swift", color: .red, isProgress: false, delay: 0.8),
-        TerminalLine(text: "\nTraceback (most recent call last):", color: .red, isProgress: false, delay: 0.5),
-        TerminalLine(text: "  File \"<stdin>\", line 1, in <module>", color: .red, isProgress: false, delay: 0.3),
-        TerminalLine(text: "  File \"/usr/local/lib/python3.9/site-packages/pip/_internal/req/req_install.py\", line 444, in run", color: .red, isProgress: false, delay: 0.3),
-        TerminalLine(text: "    raise ModuleNotFoundError(\"DependencyNotFound: Missing sense of logic\")", color: .red, isProgress: false, delay: 0.3),
-        TerminalLine(text: "ModuleNotFoundError: DependencyNotFound: Missing sense of logic", color: .red, isProgress: false, delay: 1.0),
-        TerminalLine(text: "\nERROR: Installation failed. Please update your sanity and try again.", color: .red, isProgress: false, delay: 1.0),
-        TerminalLine(text: "\nInstalling backup package: Level4_BETA.swift...", color: .white, isProgress: false, delay: 0.8),
-        TerminalLine(text: "", color: .blue, isProgress: true, delay: 1.5), // Second progress bar
-        TerminalLine(text: "✅ SUCCESS: Level4.swift installed (somehow). Good luck.", color: .green, isProgress: false, delay: 2.0)
-    ]
+    TerminalLine(text: "", color: .white, isProgress: false, delay: 0.3),  // Empty initial command
+    TerminalLine(text: "Collecting Level4.swift...", color: .white, isProgress: false, delay: 0.7),
+    TerminalLine(text: "Downloading Level4.swift-1.0.0-py3-none-any.whl (404MB)", color: .white, isProgress: false, delay: 0.6),
+    TerminalLine(text: "", color: .blue, isProgress: true, delay: 1.2), // Progress bar (faster)
+    TerminalLine(text: "ERROR: No matching distribution found for Level4.swift", color: .red, isProgress: false, delay: 0.5),
+    TerminalLine(text: "ERROR: DependencyNotFound: Missing sense of logic", color: .red, isProgress: false, delay: 0.5),
+    TerminalLine(text: "\nInstalling backup package: Level4_BETA.swift...", color: .white, isProgress: false, delay: 0.5),
+    TerminalLine(text: "", color: .blue, isProgress: true, delay: 1.0), // Second progress bar (faster)
+    TerminalLine(text: "✅ SUCCESS: Level4_BETA.swift installed (somehow). Good luck.", color: .green, isProgress: false, delay: 1.2)
+]
+
     
     // Add new button and secondEOF configuration
     // NEW: Button configuration
