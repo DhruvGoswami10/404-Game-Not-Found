@@ -161,6 +161,9 @@ struct Level4: View {
         levelManager.getTotalDeathCount()  // Get total deaths across all levels
     }
 
+    // Add new state for coffee collection
+    @State private var coffeeCollected: [Bool] = [false, false, false]  // Track 3 coffees
+
     init() {
         _rejected1Position = State(initialValue: rejected1Start)
         _rejected2Position = State(initialValue: rejected2Start)
@@ -250,16 +253,19 @@ struct Level4: View {
                             .resizable()
                             .frame(width: coffee1Size.width, height: coffee1Size.height)
                             .position(coffee1Position)
+                            .opacity(coffeeCollected[0] ? 0 : 1)
                             .zIndex(3)
                         Image("coffee")
                             .resizable()
                             .frame(width: coffee2Size.width, height: coffee2Size.height)
                             .position(coffee2Position)
+                            .opacity(coffeeCollected[1] ? 0 : 1)
                             .zIndex(3)
                         Image("coffee")
                             .resizable()
                             .frame(width: coffee3Size.width, height: coffee3Size.height)
                             .position(coffee3Position)
+                            .opacity(coffeeCollected[2] ? 0 : 1)
                             .zIndex(3)
                         
                         // Rejected assets
@@ -690,36 +696,68 @@ struct Level4: View {
         }
         
         // NEW: Check collision with coffee1.
-        let coffee1Frame = CGRect(
-            x: coffee1Position.x - coffee1Size.width/2,
-            y: coffee1Position.y - coffee1Size.height/2,
-            width: coffee1Size.width,
-            height: coffee1Size.height
+        if !coffeeCollected[0] {
+            let coffee1Frame = CGRect(
+                x: coffee1Position.x - coffee1Size.width/2,
+                y: coffee1Position.y - coffee1Size.height/2,
+                width: coffee1Size.width,
+                height: coffee1Size.height
+            )
+            let playerFrame = CGRect(
+                x: playerPosition.x - 25,
+                y: playerPosition.y - 35,
+                width: 50,
+                height: 70
+            )
+            if playerFrame.intersects(coffee1Frame) {
+                coffeeCollected[0] = true
+                swappedControls = true
+                showSwappedMessage = true
+                if (!hasBeenFooledBy.contains("coffee1")) {
+                    timesFooled += 1
+                    hasBeenFooledBy.insert("coffee1")
+                    debugLog("Fooled by coffee1: Controls swapped!")
+                }
+                // Stop the player and wait for new input
+                playerVelocity = .zero
+                isMovingLeft = false
+                isMovingRight = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    showSwappedMessage = false
+                }
+            }
+        }
+
+        // Check coffee collisions
+        let playerBounds = CGRect(
+            x: playerPosition.x - 25,
+            y: playerPosition.y - 35,
+            width: 50,
+            height: 70
         )
+
+        // Coffee2 collision (now collectible)
+        if !coffeeCollected[1] {
+            let coffee2Bounds = CGRect(
+                x: coffee2Position.x - coffee2Size.width/2,
+                y: coffee2Position.y - coffee2Size.height/2,
+                width: coffee2Size.width,
+                height: coffee2Size.height
+            )
+            if playerBounds.intersects(coffee2Bounds) {
+                coffeeCollected[1] = true
+                debugLog("Collected coffee2!")
+            }
+        }
+        
+        // Check bin collision
         let playerFrame = CGRect(
             x: playerPosition.x - 25,
             y: playerPosition.y - 35,
             width: 50,
             height: 70
         )
-        if playerFrame.intersects(coffee1Frame) && !swappedControls {
-            swappedControls = true
-            showSwappedMessage = true
-            if (!hasBeenFooledBy.contains("coffee1")) {
-                timesFooled += 1
-                hasBeenFooledBy.insert("coffee1")
-                debugLog("Fooled by coffee1: Controls swapped!")
-            }
-            // Stop the player and wait for new input.
-            playerVelocity = .zero
-            isMovingLeft = false
-            isMovingRight = false
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                showSwappedMessage = false
-            }
-        }
         
-        // Check bin collision
         let binFrame = CGRect(
             x: binPosition.x - binSize.width/2,
             y: binPosition.y - binSize.height/2,
@@ -979,6 +1017,9 @@ struct Level4: View {
         isDead = true
         debugLog("Death in Level 4 - Total deaths across all levels: \(deathCount)")
         
+        // Reset coffee collection states
+        coffeeCollected = [false, false, false]
+        
         // Clear death state after delay
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
             isDead = false
@@ -1041,6 +1082,15 @@ struct Level4: View {
             resetPlayer()
             isDead = false
         }
+    }
+
+    private func resetPosition() {
+        // ...existing code...
+        
+        // Reset coffee collection states
+        coffeeCollected = [false, false, false]
+        
+        // ...rest of existing code...
     }
     
     struct Level4_Previews: PreviewProvider {
