@@ -804,14 +804,9 @@ struct Level1: View {
 
     // Add new transition handling functions
     private func startTransition() {
-        withAnimation(.easeIn(duration: 1)) {
-            fadeToBlack = true
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            showTerminal = true
-            typeText()
-        }
+        // Remove the animation delay and start immediately
+        showTerminal = true
+        typeText()
     }
     
     private func typeText() {
